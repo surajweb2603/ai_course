@@ -8,7 +8,6 @@ const projectRoot = __dirname;
 const nextConfig = {
   reactStrictMode: true,
   swcMinify: true,
-  distDir: 'dist/frontend',
   experimental: {
     externalDir: true
   },
