@@ -3,6 +3,7 @@ import { PDFDocument, StandardFonts, rgb } from 'pdf-lib';
 import * as QRCode from 'qrcode';
 import { nanoid } from 'nanoid';
 import { readFile } from 'fs/promises';
+import { existsSync } from 'fs';
 
 interface CertificateCoords {
   dateX: number;
@@ -33,10 +34,44 @@ interface CertificateData {
 /** Load the PDF template */
 export async function loadTemplate(): Promise<Buffer> {
   const pathModule = await import('path');
-  const path =
-    process.env.CERT_TEMPLATE_PATH ||
-    pathModule.default.join(process.cwd(), 'public', 'Template.pdf');
-  return await readFile(path);
+  
+  // Try environment variable first
+  if (process.env.CERT_TEMPLATE_PATH) {
+    if (existsSync(process.env.CERT_TEMPLATE_PATH)) {
+      return await readFile(process.env.CERT_TEMPLATE_PATH);
+    }
+  }
+
+  // Try multiple path resolution methods for Vercel compatibility
+  const possiblePaths = [
+    pathModule.default.join(process.cwd(), 'public', 'Template.pdf'),
+    pathModule.default.join(process.cwd(), 'Template.pdf'),
+    pathModule.default.resolve(process.cwd(), 'public', 'Template.pdf'),
+    pathModule.default.resolve(process.cwd(), 'Template.pdf'),
+  ];
+
+  for (const path of possiblePaths) {
+    if (existsSync(path)) {
+      return await readFile(path);
+    }
+  }
+
+  // Fallback: fetch from GitHub raw URL if local file not found
+  const githubUrl = process.env.CERT_TEMPLATE_URL || 
+    'https://raw.githubusercontent.com/surajweb2603/ai_course/main/public/Template.pdf';
+  
+  try {
+    const response = await fetch(githubUrl);
+    if (!response.ok) {
+      throw new Error(`Failed to fetch template from ${githubUrl}: ${response.statusText}`);
+    }
+    const arrayBuffer = await response.arrayBuffer();
+    return Buffer.from(arrayBuffer);
+  } catch (error: any) {
+    throw new Error(
+      `Failed to load certificate template. Tried paths: ${possiblePaths.join(', ')} and URL: ${githubUrl}. Error: ${error.message}`
+    );
+  }
 }
 
 /** Build verification URL */
