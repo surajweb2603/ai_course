@@ -194,6 +194,9 @@ function renderModule(doc: any, module: IModule, lessons: ILesson[]): void {
       doc.addPage();
     }
   });
+
+  // Render quiz answers at the end of the module
+  renderModuleQuizAnswers(doc, generatedLessons);
 }
 
 function renderLesson(doc: any, lesson: ILesson): void {
@@ -293,6 +296,97 @@ function renderQuiz(doc: any, questions: any[]): void {
       .fontSize(11)
       .font('Helvetica-Oblique')
       .text(`Rationale: ${processedRationale}`, { ellipsis: true });
+    doc.moveDown(0.5);
+  });
+}
+
+function renderModuleQuizAnswers(doc: any, lessons: ILesson[]): void {
+  // Collect all quiz questions from all lessons in the module
+  const moduleQuizzes: Array<{
+    lessonTitle: string;
+    lessonOrder: number;
+    questionIndex: number;
+    question: any;
+  }> = [];
+
+  lessons.forEach((lesson) => {
+    if (lesson.content?.quiz?.questions) {
+      lesson.content.quiz.questions.forEach((question: any, qIndex: number) => {
+        moduleQuizzes.push({
+          lessonTitle: lesson.title,
+          lessonOrder: lesson.order,
+          questionIndex: qIndex,
+          question,
+        });
+      });
+    }
+  });
+
+  // Only render if there are quizzes
+  if (moduleQuizzes.length === 0) {
+    return;
+  }
+
+  // Always start quiz answers on a new page
+  doc.addPage();
+
+  doc.moveDown(1);
+  doc
+    .fontSize(16)
+    .font('Helvetica-Bold')
+    .text('Quiz Answers', { underline: true });
+  doc.moveDown(0.5);
+
+  moduleQuizzes.forEach((quizItem, index) => {
+    const { lessonTitle, lessonOrder, questionIndex, question } = quizItem;
+    const processedStem = preprocessMathForPDF(String(question.stem || ''));
+    const answerIndex = question.answerIndex ?? -1;
+    const answerLetter =
+      answerIndex >= 0 && answerIndex < question.options?.length
+        ? String.fromCharCode(65 + answerIndex)
+        : 'N/A';
+    const correctAnswer =
+      answerIndex >= 0 && answerIndex < question.options?.length
+        ? question.options[answerIndex]
+        : 'N/A';
+
+    // Check if we need a new page before rendering this answer
+    // Leave at least 100 points for the question and answer
+    const pageHeight = doc.page.height;
+    const bottomMargin = 50;
+    if (doc.y + 100 > pageHeight - bottomMargin) {
+      doc.addPage();
+    }
+
+    doc
+      .fontSize(12)
+      .font('Helvetica-Bold')
+      .text(
+        `Lesson ${lessonOrder} - Q${questionIndex + 1}: ${processedStem}`,
+        { ellipsis: true }
+      );
+    doc.moveDown(0.2);
+
+    doc
+      .fontSize(11)
+      .font('Helvetica-Bold')
+      .fillColor('green')
+      .text(`Answer: ${answerLetter}. ${preprocessMathForPDF(String(correctAnswer))}`, {
+        ellipsis: true,
+      });
+    doc.fillColor('black');
+
+    if (question.rationale) {
+      doc.moveDown(0.2);
+      const processedRationale = preprocessMathForPDF(
+        String(question.rationale || '')
+      );
+      doc
+        .fontSize(10)
+        .font('Helvetica-Oblique')
+        .text(`Explanation: ${processedRationale}`, { ellipsis: true });
+    }
+
     doc.moveDown(0.5);
   });
 }
