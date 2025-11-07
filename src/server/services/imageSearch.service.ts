@@ -564,9 +564,10 @@ export async function searchGoogleImages(query: string, numResults: number = 5):
 
   // Try g-i-s first (may work in some cases)
   if (gis) {
+    const gisFunction = gis; // Assign to const for TypeScript narrowing
     try {
       const results = await new Promise<GISResult[]>((resolve, reject) => {
-        gis(query, (error: any, results: GISResult[]) => {
+        gisFunction(query, (error: any, results: GISResult[]) => {
           if (error) {
             reject(error);
           } else {
