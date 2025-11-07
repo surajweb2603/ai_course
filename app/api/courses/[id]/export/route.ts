@@ -390,7 +390,7 @@ function finalizePdf(doc: any, chunks: Buffer[]): Promise<Buffer> {
     doc.on('end', () => {
       clearTimeout(timeout);
       try {
-        resolve(Buffer.concat(chunks));
+        resolve(Buffer.concat(chunks as unknown as readonly Uint8Array[]));
       } catch (error) {
         reject(error);
       }
