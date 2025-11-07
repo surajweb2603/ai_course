@@ -14,7 +14,7 @@ export const runtime = 'nodejs';
 export const GET = withAuth(
   async (
     req: NextAuthRequest,
-    { params }: { params: { courseId: string } }
+    context: { params: Promise<{ courseId: string }> | { courseId: string } }
   ) => {
     if (!req.user) {
       return NextResponse.json(
@@ -23,8 +23,18 @@ export const GET = withAuth(
       );
     }
 
+    // Handle params as Promise (Next.js 14.2+)
+    const params = await Promise.resolve(context.params);
     const { courseId } = params;
     const userId = req.user.sub;
+
+    // Validate courseId format
+    if (!courseId || !courseId.match(/^[0-9a-fA-F]{24}$/)) {
+      return NextResponse.json(
+        { error: 'Invalid course ID format' },
+        { status: 400 }
+      );
+    }
 
     try {
       // Check eligibility and get user/course data
@@ -44,16 +54,32 @@ export const GET = withAuth(
       });
 
       // Return PDF as response
-      return new NextResponse(Buffer.from(pdfBytes), {
+      // Convert Uint8Array to ArrayBuffer for NextResponse compatibility
+      const arrayBuffer = new ArrayBuffer(pdfBytes.length);
+      new Uint8Array(arrayBuffer).set(pdfBytes);
+      return new NextResponse(arrayBuffer, {
         headers: {
           'Content-Type': 'application/pdf',
           'Content-Disposition': `attachment; filename="certificate-${courseId}.pdf"`,
         },
       });
     } catch (error: any) {
+      console.error('Certificate generation error:', {
+        courseId,
+        userId,
+        error: error.message,
+        stack: error.stack,
+      });
+      
+      // Return appropriate status codes based on error type
+      const statusCode = error.message?.includes('not found') ? 404
+        : error.message?.includes('Unauthorized') ? 403
+        : error.message?.includes('not available') ? 400
+        : 500;
+      
       return NextResponse.json(
         { error: error.message || 'Failed to generate certificate' },
-        { status: 400 }
+        { status: statusCode }
       );
     }
   }
