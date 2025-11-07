@@ -1,3 +1,4 @@
+
 import mongoose from 'mongoose';
 
 // Support both MONGO_URI and MONGODB_URI for compatibility

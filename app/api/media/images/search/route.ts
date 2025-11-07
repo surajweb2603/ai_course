@@ -22,11 +22,17 @@ export const POST = withAuth(async (req: NextAuthRequest) => {
   }
 
   if (query.trim().length > 200) {
-    return NextResponse.json({ error: 'Query must be 200 characters or less' }, { status: 400 });
+    return NextResponse.json(
+      { error: 'Query must be 200 characters or less' },
+      { status: 400 }
+    );
   }
 
   if (typeof numResults !== 'number' || numResults < 1 || numResults > 10) {
-    return NextResponse.json({ error: 'numResults must be a number between 1 and 10' }, { status: 400 });
+    return NextResponse.json(
+      { error: 'numResults must be a number between 1 and 10' },
+      { status: 400 }
+    );
   }
 
   // Search for images
@@ -38,6 +44,6 @@ export const POST = withAuth(async (req: NextAuthRequest) => {
     provider: searchResult.provider,
     query: query.trim(),
     results: searchResult.results,
-    count: searchResult.results.length
+    count: searchResult.results.length,
   });
 });

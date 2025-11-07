@@ -1,3 +1,4 @@
+
 import { PDFDocument, StandardFonts, rgb } from 'pdf-lib';
 import * as QRCode from 'qrcode';
 import { nanoid } from 'nanoid';
@@ -31,9 +32,10 @@ interface CertificateData {
 
 /** Load the PDF template */
 export async function loadTemplate(): Promise<Buffer> {
+  const pathModule = await import('path');
   const path =
     process.env.CERT_TEMPLATE_PATH ||
-    require('path').join(process.cwd(), 'public', 'Template.pdf');
+    pathModule.default.join(process.cwd(), 'public', 'Template.pdf');
   return await readFile(path);
 }
 
@@ -146,7 +148,9 @@ export async function renderCertificatePDF(data: CertificateData): Promise<Uint8
       width: parseInt(process.env.CERT_QR_SIZE || '90'),
       height: parseInt(process.env.CERT_QR_SIZE || '90'),
     });
+    // QR code added to certificate
   } catch (err) {
+    // Ignore QR code errors
   }
 
   return await pdfDoc.save();

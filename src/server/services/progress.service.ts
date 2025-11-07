@@ -1,3 +1,4 @@
+
 import { Types } from 'mongoose';
 import { Progress, IProgress } from '../../models/Progress';
 import { Course, ICourse } from '../../models/Course';
@@ -174,7 +175,6 @@ export async function upsertProgress({
   // Update learning streak when a lesson is completed (not just when course reaches 100%)
   if (completed) {
     await updateLearningStreak(userId);
-  } else {
   }
   
   return {
@@ -267,7 +267,6 @@ export async function bulkUpdateProgress({
   // Update learning streak when lessons are completed (not just when course reaches 100%)
   if (hasCompletedLessons) {
     await updateLearningStreak(userId);
-  } else {
   }
   
   return {

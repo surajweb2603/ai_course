@@ -1,6 +1,7 @@
+
 import { Readable } from 'stream';
-const PDFDocument = require('pdfkit');
-const QRCode = require('qrcode');
+import PDFDocument from 'pdfkit';
+import QRCode from 'qrcode';
 import { nanoid } from 'nanoid';
 import { Certificate, ICertificate } from '../../models/Certificate';
 import User, { IUser } from '../../models/User';

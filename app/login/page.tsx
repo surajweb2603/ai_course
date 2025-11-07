@@ -7,6 +7,180 @@ import { motion } from 'framer-motion';
 import { auth, setAuthToken } from '@/lib/api';
 import { saveToken } from '@/lib/auth';
 import GoogleAuthButton from '@/components/GoogleAuthButton';
+
+/**
+ * Error alert component
+ */
+function ErrorAlert({ error }: { error: string }) {
+  if (!error) return null;
+  return (
+    <motion.div
+      initial={{ opacity: 0, x: -20 }}
+      animate={{ opacity: 1, x: 0 }}
+      className="rounded-lg bg-red-500/10 border border-red-500/20 p-4"
+    >
+      <p className="text-sm text-red-400">{error}</p>
+    </motion.div>
+  );
+}
+
+/**
+ * Form fields component
+ */
+function LoginFields({ 
+  email, 
+  setEmail, 
+  password, 
+  setPassword 
+}: {
+  email: string;
+  setEmail: (email: string) => void;
+  password: string;
+  setPassword: (password: string) => void;
+}) {
+  return (
+    <div className="space-y-4">
+      <div>
+        <label 
+          htmlFor="email" 
+          className="block text-sm font-medium mb-2 text-gray-700"
+        >
+          Email Address
+        </label>
+        <input
+          id="email"
+          name="email"
+          type="email"
+          autoComplete="email"
+          required
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          className="appearance-none relative block w-full px-4 py-3 bg-white border border-gray-300 rounded-lg text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all"
+          placeholder="you@example.com"
+        />
+      </div>
+
+      <div>
+        <label 
+          htmlFor="password" 
+          className="block text-sm font-medium mb-2 text-gray-700"
+        >
+          Password
+        </label>
+        <input
+          id="password"
+          name="password"
+          type="password"
+          autoComplete="current-password"
+          required
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          className="appearance-none relative block w-full px-4 py-3 bg-white border border-gray-300 rounded-lg text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all"
+          placeholder="••••••••"
+        />
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Submit button component
+ */
+function SubmitButton({ loading }: { loading: boolean }) {
+  return (
+    <motion.button
+      type="submit"
+      disabled={loading}
+      whileHover={{ scale: loading ? 1 : 1.02 }}
+      whileTap={{ scale: 0.98 }}
+      className="group relative w-full flex justify-center py-3 px-4 border border-transparent text-sm font-semibold rounded-lg text-white bg-purple-600 hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg shadow-purple-500/30"
+    >
+      {loading ? (
+        <span className="flex items-center gap-2">
+          <svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
+            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+          </svg>
+          Signing in...
+        </span>
+      ) : (
+        'Sign In'
+      )}
+    </motion.button>
+  );
+}
+
+/**
+ * Login form component
+ */
+function LoginForm({ 
+  email, 
+  setEmail, 
+  password, 
+  setPassword, 
+  rememberMe, 
+  setRememberMe, 
+  error, 
+  loading, 
+  onSubmit 
+}: {
+  email: string;
+  setEmail: (email: string) => void;
+  password: string;
+  setPassword: (password: string) => void;
+  rememberMe: boolean;
+  setRememberMe: (remember: boolean) => void;
+  error: string;
+  loading: boolean;
+  onSubmit: (e: FormEvent) => void;
+}) {
+  return (
+    <motion.form
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ delay: 0.2 }}
+      className="mt-8 space-y-6"
+      onSubmit={onSubmit}
+    >
+      <ErrorAlert error={error} />
+      <LoginFields email={email} setEmail={setEmail} password={password} setPassword={setPassword} />
+
+      <div className="flex items-center">
+        <input
+          id="remember-me"
+          name="remember-me"
+          type="checkbox"
+          checked={rememberMe}
+          onChange={(e) => setRememberMe(e.target.checked)}
+          className="h-4 w-4 rounded border-gray-300 bg-white text-purple-600 focus:ring-2 focus:ring-purple-500 focus:ring-offset-0 cursor-pointer transition-colors"
+        />
+        <label htmlFor="remember-me" className="ml-2 block text-sm text-gray-700 cursor-pointer select-none">
+          Remember me
+        </label>
+      </div>
+
+      <div>
+        <SubmitButton loading={loading} />
+      </div>
+
+      <div className="relative">
+        <div className="absolute inset-0 flex items-center">
+          <div className="w-full border-t border-gray-300"></div>
+        </div>
+        <div className="relative flex justify-center text-sm">
+          <span className="px-4 bg-[#F8F8FC] text-gray-600">
+            Or continue with
+          </span>
+        </div>
+      </div>
+
+      <div className="mt-4">
+        <GoogleAuthButton />
+      </div>
+    </motion.form>
+  );
+}
+
 export default function LoginPage() {
   const router = useRouter();
   const [email, setEmail] = useState('');
@@ -87,125 +261,26 @@ export default function LoginPage() {
           </motion.div>
         </div>
 
-        {/* Form */}
-        <motion.form
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.2 }}
-          className="mt-8 space-y-6"
+        <LoginForm
+          email={email}
+          setEmail={setEmail}
+          password={password}
+          setPassword={setPassword}
+          rememberMe={rememberMe}
+          setRememberMe={setRememberMe}
+          error={error}
+          loading={loading}
           onSubmit={handleSubmit}
-        >
-          {error && (
-            <motion.div
-              initial={{ opacity: 0, x: -20 }}
-              animate={{ opacity: 1, x: 0 }}
-              className="rounded-lg bg-red-500/10 border border-red-500/20 p-4"
-            >
-              <p className="text-sm text-red-400">{error}</p>
-            </motion.div>
-          )}
+        />
 
-          <div className="space-y-4">
-            <div>
-              <label 
-                htmlFor="email" 
-                className="block text-sm font-medium mb-2 text-gray-700"
-              >
-                Email Address
-              </label>
-              <input
-                id="email"
-                name="email"
-                type="email"
-                autoComplete="email"
-                required
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="appearance-none relative block w-full px-4 py-3 bg-white border border-gray-300 rounded-lg text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all"
-                placeholder="you@example.com"
-              />
-            </div>
-
-            <div>
-              <label 
-                htmlFor="password" 
-                className="block text-sm font-medium mb-2 text-gray-700"
-              >
-                Password
-              </label>
-              <input
-                id="password"
-                name="password"
-                type="password"
-                autoComplete="current-password"
-                required
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="appearance-none relative block w-full px-4 py-3 bg-white border border-gray-300 rounded-lg text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all"
-                placeholder="••••••••"
-              />
-            </div>
-          </div>
-
-          {/* Remember Me Checkbox */}
-          <div className="flex items-center">
-            <input
-              id="remember-me"
-              name="remember-me"
-              type="checkbox"
-              checked={rememberMe}
-              onChange={(e) => setRememberMe(e.target.checked)}
-              className="h-4 w-4 rounded border-gray-300 bg-white text-purple-600 focus:ring-2 focus:ring-purple-500 focus:ring-offset-0 cursor-pointer transition-colors"
-            />
-            <label htmlFor="remember-me" className="ml-2 block text-sm text-gray-700 cursor-pointer select-none">
-              Remember me
-            </label>
-          </div>
-
-          <div>
-            <motion.button
-              type="submit"
-              disabled={loading}
-              whileHover={{ scale: loading ? 1 : 1.02 }}
-              whileTap={{ scale: 0.98 }}
-              className="group relative w-full flex justify-center py-3 px-4 border border-transparent text-sm font-semibold rounded-lg text-white bg-purple-600 hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg shadow-purple-500/30"
-            >
-              {loading ? (
-                <span className="flex items-center gap-2">
-                  <svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                  </svg>
-                  Signing in...
-                </span>
-              ) : (
-                'Sign In'
-              )}
-            </motion.button>
-          </div>
-
-          <div className="relative">
-            <div className="absolute inset-0 flex items-center">
-              <div className="w-full border-t border-gray-300"></div>
-            </div>
-            <div className="relative flex justify-center text-sm">
-              <span className="px-4 bg-[#F8F8FC] text-gray-600">
-                Or continue with
-              </span>
-            </div>
-          </div>
-
-          <GoogleAuthButton />
-
-          <div className="text-center">
-            <Link
-              href="/"
-              className="text-sm text-gray-600 hover:text-purple-600 transition-colors"
-            >
-              ← Back to home
-            </Link>
-          </div>
-        </motion.form>
+        <div className="text-center">
+          <Link
+            href="/"
+            className="text-sm text-gray-600 hover:text-purple-600 transition-colors"
+          >
+            ← Back to home
+          </Link>
+        </div>
       </motion.div>
     </div>
   );

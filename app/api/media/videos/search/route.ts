@@ -12,11 +12,17 @@ export const GET = withAuth(async (req: NextAuthRequest) => {
 
   // Validation
   if (!topic || typeof topic !== 'string' || topic.trim().length === 0) {
-    return NextResponse.json({ error: 'Topic parameter is required' }, { status: 400 });
+    return NextResponse.json(
+      { error: 'Topic parameter is required' },
+      { status: 400 }
+    );
   }
 
   if (topic.trim().length > 100) {
-    return NextResponse.json({ error: 'Topic must be 100 characters or less' }, { status: 400 });
+    return NextResponse.json(
+      { error: 'Topic must be 100 characters or less' },
+      { status: 400 }
+    );
   }
 
   try {
@@ -42,25 +48,39 @@ export const GET = withAuth(async (req: NextAuthRequest) => {
       };
     });
 
-    return NextResponse.json({ 
+    return NextResponse.json({
       topic: topic.trim(),
       videos,
       count: videos.length,
       provider: provider,
-      message: 'Using YouTube videos (Data API v3 or Search API)'
+      message: 'Using YouTube videos (Data API v3 or Search API)',
     });
   } catch (error: any) {
     // Handle specific API errors
     if (error.message?.includes('API key')) {
-      return NextResponse.json({ error: 'Video API key not configured' }, { status: 500 });
+      return NextResponse.json(
+        { error: 'Video API key not configured' },
+        { status: 500 }
+      );
     }
     if (error.message?.includes('quota')) {
-      return NextResponse.json({ error: 'Video API quota exceeded' }, { status: 429 });
+      return NextResponse.json(
+        { error: 'Video API quota exceeded' },
+        { status: 429 }
+      );
     }
-    if (error.message?.includes('both YouTube Data API and YouTube Search API')) {
-      return NextResponse.json({ error: 'All video sources failed' }, { status: 500 });
+    if (
+      error.message?.includes('both YouTube Data API and YouTube Search API')
+    ) {
+      return NextResponse.json(
+        { error: 'All video sources failed' },
+        { status: 500 }
+      );
     }
-    
-    return NextResponse.json({ error: 'Failed to search videos' }, { status: 500 });
+
+    return NextResponse.json(
+      { error: 'Failed to search videos' },
+      { status: 500 }
+    );
   }
 });

@@ -8,6 +8,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
   const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || '';
   
   if (!clientId) {
+    // Google OAuth client ID not configured
   }
 
   // Initialize authentication when the app loads

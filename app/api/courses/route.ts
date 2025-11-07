@@ -25,7 +25,9 @@ export const POST = withAuth(async (req: NextAuthRequest) => {
 
   // Check free user course limit
   if (req.user!.plan === 'free') {
-    const existingCoursesCount = await Course.countDocuments({ userId: req.user!.sub });
+    const existingCoursesCount = await Course.countDocuments({
+      userId: req.user!.sub,
+    });
     if (existingCoursesCount >= 1) {
       return NextResponse.json(
         {

@@ -1,3 +1,4 @@
+
 import mongoose, { Schema } from 'mongoose';
 import UserStats from '@/src/models/UserStats';
 import { Course, IModule } from '@/src/models/Course';

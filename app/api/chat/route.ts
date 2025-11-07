@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { withAuth, NextAuthRequest } from '@/src/server/http/nextAdapter';
-import { generateChatResponse, ChatRequest, ChatContext } from '@/src/server/services/aiChat.service';
+import {
+  generateChatResponse,
+  ChatRequest,
+  ChatContext,
+} from '@/src/server/services/aiChat.service';
 import { Course, IModule, ILesson } from '@/src/models/Course';
 
 export const dynamic = 'force-dynamic';
@@ -9,10 +13,20 @@ export const runtime = 'nodejs';
 // POST /api/chat - Generate AI tutor response
 export const POST = withAuth(async (req: NextAuthRequest) => {
   if (!req.user) {
-    return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
+    return NextResponse.json(
+      { error: 'Authentication required' },
+      { status: 401 }
+    );
   }
 
-  const { message, courseId, moduleTitle, lessonTitle, conversationHistory, language } = await req.json();
+  const {
+    message,
+    courseId,
+    moduleTitle,
+    lessonTitle,
+    conversationHistory,
+    language,
+  } = await req.json();
 
   if (!message || !courseId) {
     return NextResponse.json(
@@ -34,7 +48,9 @@ export const POST = withAuth(async (req: NextAuthRequest) => {
   if (moduleTitle && lessonTitle && Array.isArray(course.modules)) {
     const module = course.modules.find((m: IModule) => m.title === moduleTitle);
     if (module && Array.isArray(module.lessons)) {
-      const lesson = module.lessons.find((l: ILesson) => l.title === lessonTitle);
+      const lesson = module.lessons.find(
+        (l: ILesson) => l.title === lessonTitle
+      );
       if (lesson && lesson.content) {
         lessonContent = lesson.content.theoryMd || '';
       }
@@ -48,14 +64,14 @@ export const POST = withAuth(async (req: NextAuthRequest) => {
     moduleTitle,
     lessonTitle,
     lessonContent,
-    language: language || 'en'
+    language: language || 'en',
   };
 
   // Prepare chat request
   const chatRequest: ChatRequest = {
     message,
     context,
-    conversationHistory: conversationHistory || []
+    conversationHistory: conversationHistory || [],
   };
 
   // Generate AI response
@@ -66,7 +82,7 @@ export const POST = withAuth(async (req: NextAuthRequest) => {
     data: {
       message: response.message,
       timestamp: response.timestamp,
-      provider: response.provider
-    }
+      provider: response.provider,
+    },
   });
 });

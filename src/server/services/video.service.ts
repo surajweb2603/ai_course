@@ -1,3 +1,4 @@
+
 import axios from 'axios';
 import { quotaManager } from './quotaManager.service';
 import * as cheerio from 'cheerio';
@@ -136,6 +137,7 @@ export async function searchYouTubeVideosScraping(topic: string): Promise<YouTub
             }
           }
         } catch (parseError) {
+          // Ignore parse errors
         }
       }
     });

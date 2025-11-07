@@ -1,3 +1,4 @@
+
 import OpenAI from 'openai';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { searchImages } from './imageSearch.service';
@@ -105,15 +106,15 @@ CONTENT REQUIREMENTS - Create comprehensive content that progresses from basic c
 
 MATHEMATICAL EXPRESSIONS - CRITICAL:
 - ALWAYS use LaTeX syntax for ALL mathematical expressions
-- Inline math: wrap with single dollar signs $expression$ (e.g., $x^n$, $f'(x) = n \cdot x^{n-1}$, $b^2 - 2ac$)
+- Inline math: wrap with single dollar signs $expression$ (e.g., $x^n$, $f'(x) = n \\cdot x^{n-1}$, $b^2 - 2ac$)
 - Block math: wrap with double dollar signs $$expression$$ for centered equations
 - Use proper LaTeX syntax:
   * Exponents: $x^n$ not x^n
   * Subscripts: $x_i$ not x_i
-  * Fractions: $\frac{a}{b}$ not a/b
+  * Fractions: $\\frac{a}{b}$ not a/b
   * Derivatives: $f'(x)$ not f'(x)
-  * Square roots: $\sqrt{x}$ not sqrt(x)
-- Examples: "$x^n$, then $f'(x) = n \cdot x^{n-1}$" or "$(uv)' = u'v + uv'$" or "$b^2 - 2ac$"
+  * Square roots: $\\sqrt{x}$ not sqrt(x)
+- Examples: "$x^n$, then $f'(x) = n \\cdot x^{n-1}$" or "$(uv)' = u'v + uv'$" or "$b^2 - 2ac$"
 - NEVER use plain ASCII notation like x^n, b^2, f'(x) - ALWAYS wrap in LaTeX delimiters
 
 Required JSON fields
@@ -273,7 +274,7 @@ async function generateWithOpenAI(input: GenerateLessonContentInput): Promise<Le
   const systemPrompt = `You are an expert educational content creator. Generate comprehensive lesson content that progresses from beginner to advanced concepts. 
 
 CRITICAL: For ALL mathematical expressions, ALWAYS use LaTeX syntax:
-- Inline math: $expression$ (e.g., $x^n$, $f'(x) = n \cdot x^{n-1}$, $b^2 - 2ac$)
+- Inline math: $expression$ (e.g., $x^n$, $f'(x) = n \\cdot x^{n-1}$, $b^2 - 2ac$)
 - Block math: $$expression$$ for centered equations
 - NEVER use plain ASCII like x^n or b^2 - always wrap in LaTeX delimiters
 
@@ -501,115 +502,146 @@ function parseLessonContent(response: string): LessonContentDTO {
 }
 
 /**
+ * Helper functions for subject-specific prompt generation
+ */
+function generateProgrammingPrompts(keyConcepts: string[], titleLower: string): string[] {
+  const prompts: string[] = [];
+  if (titleLower.includes('function') || titleLower.includes('method')) {
+    prompts.push(`${keyConcepts.join(' ')} function definition programming flowchart`);
+    prompts.push(`${keyConcepts.join(' ')} function call stack diagram`);
+  } else if (titleLower.includes('loop') || titleLower.includes('iteration')) {
+    prompts.push(`${keyConcepts.join(' ')} loop execution flowchart programming`);
+    prompts.push(`${keyConcepts.join(' ')} iteration process diagram`);
+  } else if (titleLower.includes('class') || titleLower.includes('object')) {
+    prompts.push(`${keyConcepts.join(' ')} class hierarchy diagram programming`);
+    prompts.push(`${keyConcepts.join(' ')} object relationship diagram`);
+  } else if (titleLower.includes('algorithm') || titleLower.includes('sort')) {
+    prompts.push(`${keyConcepts.join(' ')} algorithm flowchart programming`);
+    prompts.push(`${keyConcepts.join(' ')} sorting algorithm visualization`);
+  } else {
+    prompts.push(`${keyConcepts.join(' ')} programming concept diagram`);
+    prompts.push(`${keyConcepts.join(' ')} code structure flowchart`);
+  }
+  return prompts;
+}
+
+function generateDataSciencePrompts(keyConcepts: string[], titleLower: string): string[] {
+  const prompts: string[] = [];
+  if (titleLower.includes('machine learning') || titleLower.includes('ai')) {
+    prompts.push(`${keyConcepts.join(' ')} machine learning algorithm diagram`);
+    prompts.push(`${keyConcepts.join(' ')} neural network architecture diagram`);
+  } else if (titleLower.includes('visualization') || titleLower.includes('chart')) {
+    prompts.push(`${keyConcepts.join(' ')} data visualization chart`);
+    prompts.push(`${keyConcepts.join(' ')} statistical analysis diagram`);
+  } else {
+    prompts.push(`${keyConcepts.join(' ')} data analysis flowchart`);
+    prompts.push(`${keyConcepts.join(' ')} statistical process diagram`);
+  }
+  return prompts;
+}
+
+function generateWebDevPrompts(keyConcepts: string[], titleLower: string): string[] {
+  const prompts: string[] = [];
+  if (titleLower.includes('html') || titleLower.includes('structure')) {
+    prompts.push(`${keyConcepts.join(' ')} HTML structure diagram`);
+    prompts.push(`${keyConcepts.join(' ')} web page layout diagram`);
+  } else if (titleLower.includes('css') || titleLower.includes('styling')) {
+    prompts.push(`${keyConcepts.join(' ')} CSS styling diagram`);
+    prompts.push(`${keyConcepts.join(' ')} responsive design flowchart`);
+  } else if (titleLower.includes('javascript') || titleLower.includes('interactive')) {
+    prompts.push(`${keyConcepts.join(' ')} JavaScript interaction diagram`);
+    prompts.push(`${keyConcepts.join(' ')} DOM manipulation flowchart`);
+  } else {
+    prompts.push(`${keyConcepts.join(' ')} web development process diagram`);
+  }
+  return prompts;
+}
+
+function generateDatabasePrompts(keyConcepts: string[], titleLower: string): string[] {
+  const prompts: string[] = [];
+  if (titleLower.includes('table') || titleLower.includes('schema')) {
+    prompts.push(`${keyConcepts.join(' ')} database schema diagram`);
+    prompts.push(`${keyConcepts.join(' ')} table relationship diagram`);
+  } else if (titleLower.includes('query') || titleLower.includes('select')) {
+    prompts.push(`${keyConcepts.join(' ')} SQL query execution diagram`);
+    prompts.push(`${keyConcepts.join(' ')} database query flowchart`);
+  } else {
+    prompts.push(`${keyConcepts.join(' ')} database architecture diagram`);
+  }
+  return prompts;
+}
+
+function generateBusinessPrompts(keyConcepts: string[], titleLower: string): string[] {
+  const prompts: string[] = [];
+  if (titleLower.includes('strategy') || titleLower.includes('planning')) {
+    prompts.push(`${keyConcepts.join(' ')} business strategy diagram`);
+    prompts.push(`${keyConcepts.join(' ')} strategic planning flowchart`);
+  } else if (titleLower.includes('marketing') || titleLower.includes('campaign')) {
+    prompts.push(`${keyConcepts.join(' ')} marketing funnel diagram`);
+    prompts.push(`${keyConcepts.join(' ')} customer journey map`);
+  } else {
+    prompts.push(`${keyConcepts.join(' ')} business process diagram`);
+  }
+  return prompts;
+}
+
+function generateSciencePrompts(keyConcepts: string[], titleLower: string): string[] {
+  const prompts: string[] = [];
+  if (titleLower.includes('process') || titleLower.includes('reaction')) {
+    prompts.push(`${keyConcepts.join(' ')} scientific process diagram`);
+    prompts.push(`${keyConcepts.join(' ')} chemical reaction flowchart`);
+  } else if (titleLower.includes('structure') || titleLower.includes('molecule')) {
+    prompts.push(`${keyConcepts.join(' ')} molecular structure diagram`);
+    prompts.push(`${keyConcepts.join(' ')} chemical structure visualization`);
+  } else {
+    prompts.push(`${keyConcepts.join(' ')} scientific concept diagram`);
+  }
+  return prompts;
+}
+
+function generateMathPrompts(keyConcepts: string[], titleLower: string): string[] {
+  const prompts: string[] = [];
+  if (titleLower.includes('function') || titleLower.includes('graph')) {
+    prompts.push(`${keyConcepts.join(' ')} mathematical function graph`);
+    prompts.push(`${keyConcepts.join(' ')} function visualization diagram`);
+  } else if (titleLower.includes('equation') || titleLower.includes('formula')) {
+    prompts.push(`${keyConcepts.join(' ')} mathematical equation diagram`);
+    prompts.push(`${keyConcepts.join(' ')} formula derivation flowchart`);
+  } else {
+    prompts.push(`${keyConcepts.join(' ')} mathematical concept diagram`);
+  }
+  return prompts;
+}
+
+/**
  * Generate topic-specific educational image prompts with strict relevance
  * Now creates highly specific prompts that focus on the exact lesson content
  */
 function generateEducationalImagePrompts(lessonTitle: string, subject: string, lessonContent: string): string[] {
-  
   const prompts: string[] = [];
   const subjectLower = subject.toLowerCase();
   const titleLower = lessonTitle.toLowerCase();
-  
-  // Extract key concepts from lesson title and content
   const keyConcepts = extractKeyConcepts(lessonTitle, lessonContent);
   
-  // Generate highly specific prompts based on the exact lesson content
   if (subjectLower.includes('programming') || subjectLower.includes('coding') || subjectLower.includes('python') || subjectLower.includes('javascript')) {
-    // Programming-specific prompts with exact technical terms
-    if (titleLower.includes('function') || titleLower.includes('method')) {
-      prompts.push(`${keyConcepts.join(' ')} function definition programming flowchart`);
-      prompts.push(`${keyConcepts.join(' ')} function call stack diagram`);
-    } else if (titleLower.includes('loop') || titleLower.includes('iteration')) {
-      prompts.push(`${keyConcepts.join(' ')} loop execution flowchart programming`);
-      prompts.push(`${keyConcepts.join(' ')} iteration process diagram`);
-    } else if (titleLower.includes('class') || titleLower.includes('object')) {
-      prompts.push(`${keyConcepts.join(' ')} class hierarchy diagram programming`);
-      prompts.push(`${keyConcepts.join(' ')} object relationship diagram`);
-    } else if (titleLower.includes('algorithm') || titleLower.includes('sort')) {
-      prompts.push(`${keyConcepts.join(' ')} algorithm flowchart programming`);
-      prompts.push(`${keyConcepts.join(' ')} sorting algorithm visualization`);
-    } else {
-      // General programming concepts
-      prompts.push(`${keyConcepts.join(' ')} programming concept diagram`);
-      prompts.push(`${keyConcepts.join(' ')} code structure flowchart`);
-    }
+    prompts.push(...generateProgrammingPrompts(keyConcepts, titleLower));
   } else if (subjectLower.includes('data') || subjectLower.includes('analysis') || subjectLower.includes('statistics')) {
-    // Data science-specific prompts
-    if (titleLower.includes('machine learning') || titleLower.includes('ai')) {
-      prompts.push(`${keyConcepts.join(' ')} machine learning algorithm diagram`);
-      prompts.push(`${keyConcepts.join(' ')} neural network architecture diagram`);
-    } else if (titleLower.includes('visualization') || titleLower.includes('chart')) {
-      prompts.push(`${keyConcepts.join(' ')} data visualization chart`);
-      prompts.push(`${keyConcepts.join(' ')} statistical analysis diagram`);
-    } else {
-      prompts.push(`${keyConcepts.join(' ')} data analysis flowchart`);
-      prompts.push(`${keyConcepts.join(' ')} statistical process diagram`);
-    }
+    prompts.push(...generateDataSciencePrompts(keyConcepts, titleLower));
   } else if (subjectLower.includes('web') || subjectLower.includes('html') || subjectLower.includes('css')) {
-    // Web development-specific prompts
-    if (titleLower.includes('html') || titleLower.includes('structure')) {
-      prompts.push(`${keyConcepts.join(' ')} HTML structure diagram`);
-      prompts.push(`${keyConcepts.join(' ')} web page layout diagram`);
-    } else if (titleLower.includes('css') || titleLower.includes('styling')) {
-      prompts.push(`${keyConcepts.join(' ')} CSS styling diagram`);
-      prompts.push(`${keyConcepts.join(' ')} responsive design flowchart`);
-    } else if (titleLower.includes('javascript') || titleLower.includes('interactive')) {
-      prompts.push(`${keyConcepts.join(' ')} JavaScript interaction diagram`);
-      prompts.push(`${keyConcepts.join(' ')} DOM manipulation flowchart`);
-    } else {
-      prompts.push(`${keyConcepts.join(' ')} web development process diagram`);
-    }
+    prompts.push(...generateWebDevPrompts(keyConcepts, titleLower));
   } else if (subjectLower.includes('database') || subjectLower.includes('sql')) {
-    // Database-specific prompts
-    if (titleLower.includes('table') || titleLower.includes('schema')) {
-      prompts.push(`${keyConcepts.join(' ')} database schema diagram`);
-      prompts.push(`${keyConcepts.join(' ')} table relationship diagram`);
-    } else if (titleLower.includes('query') || titleLower.includes('select')) {
-      prompts.push(`${keyConcepts.join(' ')} SQL query execution diagram`);
-      prompts.push(`${keyConcepts.join(' ')} database query flowchart`);
-    } else {
-      prompts.push(`${keyConcepts.join(' ')} database architecture diagram`);
-    }
+    prompts.push(...generateDatabasePrompts(keyConcepts, titleLower));
   } else if (subjectLower.includes('business') || subjectLower.includes('marketing') || subjectLower.includes('management')) {
-    // Business-specific prompts
-    if (titleLower.includes('strategy') || titleLower.includes('planning')) {
-      prompts.push(`${keyConcepts.join(' ')} business strategy diagram`);
-      prompts.push(`${keyConcepts.join(' ')} strategic planning flowchart`);
-    } else if (titleLower.includes('marketing') || titleLower.includes('campaign')) {
-      prompts.push(`${keyConcepts.join(' ')} marketing funnel diagram`);
-      prompts.push(`${keyConcepts.join(' ')} customer journey map`);
-    } else {
-      prompts.push(`${keyConcepts.join(' ')} business process diagram`);
-    }
+    prompts.push(...generateBusinessPrompts(keyConcepts, titleLower));
   } else if (subjectLower.includes('science') || subjectLower.includes('chemistry') || subjectLower.includes('biology') || subjectLower.includes('physics')) {
-    // Science-specific prompts
-    if (titleLower.includes('process') || titleLower.includes('reaction')) {
-      prompts.push(`${keyConcepts.join(' ')} scientific process diagram`);
-      prompts.push(`${keyConcepts.join(' ')} chemical reaction flowchart`);
-    } else if (titleLower.includes('structure') || titleLower.includes('molecule')) {
-      prompts.push(`${keyConcepts.join(' ')} molecular structure diagram`);
-      prompts.push(`${keyConcepts.join(' ')} chemical structure visualization`);
-    } else {
-      prompts.push(`${keyConcepts.join(' ')} scientific concept diagram`);
-    }
+    prompts.push(...generateSciencePrompts(keyConcepts, titleLower));
   } else if (subjectLower.includes('math') || subjectLower.includes('mathematics') || subjectLower.includes('algebra') || subjectLower.includes('calculus')) {
-    // Math-specific prompts
-    if (titleLower.includes('function') || titleLower.includes('graph')) {
-      prompts.push(`${keyConcepts.join(' ')} mathematical function graph`);
-      prompts.push(`${keyConcepts.join(' ')} function visualization diagram`);
-    } else if (titleLower.includes('equation') || titleLower.includes('formula')) {
-      prompts.push(`${keyConcepts.join(' ')} mathematical equation diagram`);
-      prompts.push(`${keyConcepts.join(' ')} formula derivation flowchart`);
-    } else {
-      prompts.push(`${keyConcepts.join(' ')} mathematical concept diagram`);
-    }
+    prompts.push(...generateMathPrompts(keyConcepts, titleLower));
   } else {
-    // General educational prompts with specific focus
     prompts.push(`${keyConcepts.join(' ')} concept diagram educational`);
     prompts.push(`${keyConcepts.join(' ')} learning process flowchart`);
   }
   
-  // Add fallback prompts only if we have very few specific prompts
   if (prompts.length < 2) {
     if (subjectLower.includes('programming') || subjectLower.includes('coding')) {
       prompts.push('programming concept flowchart diagram');
@@ -768,7 +800,8 @@ function isNonEnglish(text: string): boolean {
   if (!text || text.trim().length === 0) return false;
   
   // Check for non-ASCII characters (common indicator of non-English)
-  const nonAsciiRegex = /[^\x00-\x7F]/;
+  // Exclude control characters (use \u0020-\u007F instead of \u0000-\u007F)
+  const nonAsciiRegex = /[^\u0020-\u007F]/;
   if (!nonAsciiRegex.test(text)) return false;
   
   // Common English words should be ASCII, so if we have non-ASCII, it's likely non-English
@@ -805,6 +838,94 @@ async function translateToEnglishIfNeeded(text: string, sourceLanguage?: string)
 }
 
 /**
+ * Build search strategies for image search
+ */
+function buildImageSearchStrategies(
+  translatedPrompt: string,
+  translatedLessonTitle: string | undefined,
+  translatedSubject: string | undefined,
+  translatedEducationalPrompts: string[],
+  keyTerms: string[]
+): string[] {
+  const contentSpecificPrompts: string[] = [];
+  if (translatedPrompt && keyTerms.length > 0) {
+    const topTerms = keyTerms.slice(0, 2).join(' ');
+    contentSpecificPrompts.push(`${translatedPrompt} ${topTerms}`);
+    contentSpecificPrompts.push(`${topTerms} ${translatedPrompt}`);
+  }
+  
+  return [
+    translatedPrompt,
+    ...contentSpecificPrompts,
+    ...(translatedEducationalPrompts.length > 0 ? translatedEducationalPrompts.slice(0, 2) : []),
+    `${translatedLessonTitle || ''} ${translatedSubject || ''} educational diagram infographic`.trim()
+  ].filter(p => p && p.trim().length > 0);
+}
+
+/**
+ * Search for images using multiple strategies
+ */
+async function searchImagesWithStrategies(searchStrategies: string[]): Promise<{ result: any; usedPrompt: string } | null> {
+  let searchResult: any = null;
+  let usedPrompt = '';
+  
+  for (const prompt of searchStrategies) {
+    if (!prompt || prompt.trim().length === 0) continue;
+    if (searchResult && searchResult.results && searchResult.results.length > 0) break;
+    
+    try {
+      searchResult = await searchImages(prompt, 1);
+      usedPrompt = prompt;
+      if (searchResult.results && searchResult.results.length > 0) break;
+    } catch (error: any) {
+      continue;
+    }
+  }
+  
+  return searchResult && searchResult.results && searchResult.results.length > 0
+    ? { result: searchResult, usedPrompt }
+    : null;
+}
+
+/**
+ * Extract image URL from search result
+ */
+function extractImageUrlFromResult(searchResult: any): { url: string; result: any } | null {
+  const firstResult = searchResult.results[0];
+  
+  if (searchResult.provider === 'google') {
+    const googleResult = firstResult as any;
+    const imageUrl = googleResult.link || googleResult.image?.contextLink;
+    if (imageUrl && isValidMediaUrl(imageUrl, 'image')) {
+      return { url: imageUrl, result: firstResult };
+    }
+  } else if (searchResult.provider === 'bing') {
+    const results = searchResult.results as any[];
+    const nonProxyResult = results.find((r: any) => {
+      const url = r.link || r.image?.contextLink || '';
+      return url && !url.includes('r.bing.com/rp/') && isValidMediaUrl(url, 'image');
+    });
+    
+    if (nonProxyResult) {
+      const imageUrl = nonProxyResult.link || nonProxyResult.image?.contextLink;
+      return { url: imageUrl, result: nonProxyResult };
+    }
+    
+    const proxyResult = results.find((r: any) => {
+      const url = r.link || r.image?.contextLink || '';
+      return url && isValidMediaUrl(url, 'image');
+    });
+    
+    if (proxyResult) {
+      const imageUrl = proxyResult.link || proxyResult.image?.contextLink;
+      return { url: imageUrl, result: proxyResult };
+    }
+  }
+  
+  return null;
+}
+
+/**
  * Automatically search for and update media items with actual image URLs
  */
 async function enhanceMediaWithImages(
@@ -813,184 +934,61 @@ async function enhanceMediaWithImages(
   subject?: string,
   language?: string
 ): Promise<LessonContentDTO> {
-  
   if (!content.media || content.media.length === 0) {
     return content;
   }
 
-  
-  // Generate topic-specific educational prompts based on ACTUAL lesson content
   let educationalPrompts: string[] = [];
   if (lessonTitle && subject) {
-    // Use the full lesson content (theory + examples) for better relevance
     const lessonContent = `${content.theoryMd || ''} ${content.exampleMd || ''} ${content.exerciseMd || ''}`;
     educationalPrompts = generateEducationalImagePrompts(lessonTitle, subject, lessonContent);
   }
-  
-  // Log all media items that need images
-  content.media.forEach((mediaItem, index) => {
-    if (mediaItem.type === 'image' && !mediaItem.url && mediaItem.prompt) {
-    }
-  });
 
   const enhancedMedia = await Promise.all(
-    content.media.map(async (mediaItem, index) => {
-      // Only process image items that don't have URLs yet
-      if (mediaItem.type === 'image' && !mediaItem.url && mediaItem.prompt) {
-        
-        // Translate prompts to English for better image search results
-        const translatedPrompt = await translateToEnglishIfNeeded(mediaItem.prompt, language);
-        const translatedLessonTitle = lessonTitle ? await translateToEnglishIfNeeded(lessonTitle, language) : lessonTitle;
-        const translatedSubject = subject ? await translateToEnglishIfNeeded(subject, language) : subject;
-        
-        // Translate educational prompts if they exist
-        const translatedEducationalPrompts = await Promise.all(
-          educationalPrompts.map(p => translateToEnglishIfNeeded(p, language))
-        );
-        
-        // PRIORITY: Use the original AI-generated prompt first (it's already content-specific)
-        // Then try educational prompts generated from actual lesson content
-        // Build content-specific prompts from the actual lesson content
-        const contentSpecificPrompts: string[] = [];
-        
-        // Extract key terms from lesson content for better relevance
-        const lessonContentText = `${content.theoryMd || ''} ${content.exampleMd || ''}`;
-        const keyTerms = extractKeyConcepts(lessonTitle || '', lessonContentText);
-        
-        // Create content-specific prompts using actual lesson terms
-        if (translatedPrompt && keyTerms.length > 0) {
-          // Combine original prompt with content-specific terms for maximum relevance
-          const topTerms = keyTerms.slice(0, 2).join(' ');
-          contentSpecificPrompts.push(`${translatedPrompt} ${topTerms}`);
-          contentSpecificPrompts.push(`${topTerms} ${translatedPrompt}`);
-        }
-        
-        // Try multiple search strategies (prioritize content-specific prompts)
-        const searchStrategies = [
-          // Strategy 1 (HIGHEST PRIORITY): Original AI-generated prompt (already content-specific)
-          translatedPrompt,
-          // Strategy 2: Content-specific prompts (original prompt + lesson content terms)
-          ...contentSpecificPrompts,
-          // Strategy 3: Educational prompts generated from lesson content
-          ...(translatedEducationalPrompts.length > 0 ? translatedEducationalPrompts.slice(0, 2) : []),
-          // Strategy 4: Fallback with lesson title + subject
-          `${translatedLessonTitle || ''} ${translatedSubject || ''} educational diagram infographic`.trim()
-        ].filter(p => p && p.trim().length > 0); // Remove empty prompts
-        
-        let searchResult: any = null;
-        let usedPrompt = '';
-        
-        // Try each strategy until we find a good result
-        for (const prompt of searchStrategies) {
-          if (!prompt || prompt.trim().length === 0) continue;
-          
-          if (searchResult && searchResult.results && searchResult.results.length > 0) {
-            break; // Found a good result, stop trying
-          }
-          
-          try {
-            searchResult = await searchImages(prompt, 1);
-            usedPrompt = prompt;
-            
-            if (searchResult.results && searchResult.results.length > 0) {
-              // Prefer non-proxy URLs but allow proxy URLs as fallback (yesterday's fix behavior)
-              if (searchResult.provider === 'bing') {
-                const hasNonProxyUrl = searchResult.results.some((r: any) => {
-                  const url = r.link || r.image?.contextLink || '';
-                  return url && !url.includes('r.bing.com/rp/');
-                });
-                
-                if (!hasNonProxyUrl) {
-                  // Continue with proxy URLs as fallback (yesterday's fix behavior)
-                }
-              }
-              
-              break;
-            }
-          } catch (error: any) {
-            continue;
-          }
-        }
-        
-        if (searchResult && searchResult.results && searchResult.results.length > 0) {
-          const firstResult = searchResult.results[0];
-          let imageUrl = '';
-          
-          // Handle different result formats from different providers
-          if (searchResult.provider === 'google') {
-            const googleResult = firstResult as any;
-            imageUrl = googleResult.link || googleResult.image?.contextLink;
-          } else if (searchResult.provider === 'bing') {
-            const bingResult = firstResult as any;
-            // Prefer non-proxy URLs but allow proxy URLs as fallback (yesterday's fix behavior)
-            const results = searchResult.results as any[];
-            
-            // First, try to find a non-proxy URL
-            let nonProxyResult = results.find((r: any) => {
-              const url = r.link || r.image?.contextLink || '';
-              return url && !url.includes('r.bing.com/rp/') && isValidMediaUrl(url, 'image');
-            });
-            
-            let selectedResult = firstResult;
-            if (nonProxyResult) {
-              imageUrl = nonProxyResult.link || nonProxyResult.image?.contextLink;
-              selectedResult = nonProxyResult;
-            } else {
-              // Fallback to proxy URLs if no non-proxy URLs available (yesterday's fix)
-              const proxyResult = results.find((r: any) => {
-                const url = r.link || r.image?.contextLink || '';
-                return url && isValidMediaUrl(url, 'image');
-              });
-              
-              if (proxyResult) {
-                imageUrl = proxyResult.link || proxyResult.image?.contextLink;
-                selectedResult = proxyResult;
-              } else {
-                // Skip this result entirely
-                searchResult = null;
-              }
-            }
-            
-            // If we have a valid URL (proxy or non-proxy), process it
-            if (imageUrl && searchResult) {
-              // Use the selected result for title extraction
-              const resultTitle = (selectedResult as any).title || (selectedResult as any).alt_description;
-              const enhancedItem = {
-                ...mediaItem,
-                url: imageUrl,
-                title: resultTitle || mediaItem.title || `Image for ${mediaItem.alt || 'lesson content'}`,
-                prompt: usedPrompt // Update with the successful prompt
-              };
-              
-              return enhancedItem;
-            }
-          }
-          
-          // Validate URL is not null, empty, or invalid
-          if (imageUrl && imageUrl !== 'null' && typeof imageUrl === 'string' && imageUrl.trim() !== '' && isValidMediaUrl(imageUrl, 'image')) {
-            const resultTitle = (firstResult as any).title || (firstResult as any).alt_description;
-            const enhancedItem = {
-              ...mediaItem,
-              url: imageUrl,
-              title: resultTitle || mediaItem.title || `Image for ${mediaItem.alt || 'lesson content'}`,
-              prompt: usedPrompt // Update with the successful prompt
-            };
-            
-            return enhancedItem;
-          }
-        }
-        
+    content.media.map(async (mediaItem) => {
+      if (mediaItem.type !== 'image' || mediaItem.url || !mediaItem.prompt) {
         return mediaItem;
-      } else {
-        return mediaItem; // Return unchanged if not an image or already has URL
       }
+      
+      const translatedPrompt = await translateToEnglishIfNeeded(mediaItem.prompt, language);
+      const translatedLessonTitle = lessonTitle ? await translateToEnglishIfNeeded(lessonTitle, language) : lessonTitle;
+      const translatedSubject = subject ? await translateToEnglishIfNeeded(subject, language) : subject;
+      const translatedEducationalPrompts = await Promise.all(
+        educationalPrompts.map(p => translateToEnglishIfNeeded(p, language))
+      );
+      
+      const lessonContentText = `${content.theoryMd || ''} ${content.exampleMd || ''}`;
+      const keyTerms = extractKeyConcepts(lessonTitle || '', lessonContentText);
+      const searchStrategies = buildImageSearchStrategies(
+        translatedPrompt,
+        translatedLessonTitle,
+        translatedSubject,
+        translatedEducationalPrompts,
+        keyTerms
+      );
+      
+      const searchData = await searchImagesWithStrategies(searchStrategies);
+      if (!searchData) {
+        return mediaItem;
+      }
+      
+      const imageData = extractImageUrlFromResult(searchData.result);
+      if (!imageData) {
+        return mediaItem;
+      }
+      
+      const resultTitle = (imageData.result as any).title || (imageData.result as any).alt_description;
+      return {
+        ...mediaItem,
+        url: imageData.url,
+        title: resultTitle || mediaItem.title || `Image for ${mediaItem.alt || 'lesson content'}`,
+        prompt: searchData.usedPrompt
+      };
     })
   );
 
-  // Filter out media items with invalid URLs
   const validatedMedia = enhancedMedia.filter((item) => {
     if (!item.url) {
-      // Allow items without URLs if they have prompts (they'll be searched later)
       return !!item.prompt;
     }
     return isValidMediaUrl(item.url, item.type);
@@ -1021,6 +1019,7 @@ async function enhanceMediaWithVideos(content: LessonContentDTO, lessonTitle?: s
   try {
     videos = await searchVideosWithFallback(lessonTitle) as YouTubeVideo[];
   } catch (error: any) {
+    // Ignore video search errors
   }
   // Format as lesson media items and filter out invalid URLs
   const videoMedia: MediaItem[] = (videos || [])

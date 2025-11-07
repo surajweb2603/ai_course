@@ -7,52 +7,66 @@ import mongoose from 'mongoose';
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 
-// POST /api/quizzes/save - Save quiz response
-export const POST = withAuth(async (req: NextAuthRequest) => {
-  if (!req.user) {
-    return NextResponse.json({ error: 'User not authenticated' }, { status: 401 });
+/**
+ * Validate quiz save request
+ */
+function validateQuizSaveRequest(data: any): { error?: string } {
+  const {
+    courseId,
+    lessonId,
+    moduleOrder,
+    lessonOrder,
+    questionIndex,
+    selectedAnswerIndex,
+  } = data;
+
+  if (
+    !courseId ||
+    lessonId === undefined ||
+    moduleOrder === undefined ||
+    lessonOrder === undefined ||
+    questionIndex === undefined ||
+    selectedAnswerIndex === undefined
+  ) {
+    return {
+      error:
+        'Missing required fields: courseId, lessonId, moduleOrder, lessonOrder, questionIndex, selectedAnswerIndex',
+    };
   }
 
-  const { 
-    courseId, 
-    lessonId, 
-    moduleOrder, 
-    lessonOrder, 
-    questionIndex, 
-    selectedAnswerIndex 
-  } = await req.json();
-
-  // Validate required fields
-  if (!courseId || lessonId === undefined || moduleOrder === undefined || 
-      lessonOrder === undefined || questionIndex === undefined || 
-      selectedAnswerIndex === undefined) {
-    return NextResponse.json(
-      { error: 'Missing required fields: courseId, lessonId, moduleOrder, lessonOrder, questionIndex, selectedAnswerIndex' },
-      { status: 400 }
-    );
-  }
-
-  // Validate types
-  if (typeof moduleOrder !== 'number' || typeof lessonOrder !== 'number' || 
-      typeof questionIndex !== 'number' || typeof selectedAnswerIndex !== 'number') {
-    return NextResponse.json(
-      { error: 'Invalid field types: moduleOrder, lessonOrder, questionIndex, and selectedAnswerIndex must be numbers' },
-      { status: 400 }
-    );
+  if (
+    typeof moduleOrder !== 'number' ||
+    typeof lessonOrder !== 'number' ||
+    typeof questionIndex !== 'number' ||
+    typeof selectedAnswerIndex !== 'number'
+  ) {
+    return {
+      error:
+        'Invalid field types: moduleOrder, lessonOrder, questionIndex, and selectedAnswerIndex must be numbers',
+    };
   }
 
   if (selectedAnswerIndex < 0 || selectedAnswerIndex > 3) {
-    return NextResponse.json(
-      { error: 'selectedAnswerIndex must be between 0 and 3' },
-      { status: 400 }
-    );
+    return { error: 'selectedAnswerIndex must be between 0 and 3' };
   }
 
-  const userId = req.user.sub;
+  return {};
+}
 
-  // Verify course and lesson exist
+/**
+ * Find lesson and question by course, module, and lesson order
+ */
+async function findLessonAndQuestion(
+  courseId: string,
+  userId: string,
+  moduleOrder: number,
+  lessonOrder: number,
+  questionIndex: number
+): Promise<{ error?: string; question?: any }> {
   type CourseLean = {
-    modules: Array<IModule & { lessons: Array<ILesson & { content?: ILessonContent }> }>;
+    modules: Array<
+      IModule & { lessons: Array<ILesson & { content?: ILessonContent }> }
+    >;
   };
 
   const course = await Course.findOne({
@@ -61,30 +75,70 @@ export const POST = withAuth(async (req: NextAuthRequest) => {
   }).lean<CourseLean>();
 
   if (!course) {
-    return NextResponse.json({ error: 'Course not found or access denied' }, { status: 404 });
+    return { error: 'Course not found or access denied' };
   }
 
-  // Find the lesson to get the correct answer
   const module = course.modules.find((m) => m.order === moduleOrder);
   if (!module) {
-    return NextResponse.json({ error: 'Module not found' }, { status: 404 });
+    return { error: 'Module not found' };
   }
 
   const lesson = module.lessons.find((l) => l.order === lessonOrder);
   if (!lesson || !lesson.content || !lesson.content.quiz) {
-    return NextResponse.json({ error: 'Lesson or quiz not found' }, { status: 404 });
+    return { error: 'Lesson or quiz not found' };
   }
 
   const question = lesson.content.quiz.questions[questionIndex];
   if (!question) {
-    return NextResponse.json({ error: 'Question not found' }, { status: 404 });
+    return { error: 'Question not found' };
   }
 
-  // Check if answer is correct
+  return { question };
+}
+
+// POST /api/quizzes/save - Save quiz response
+export const POST = withAuth(async (req: NextAuthRequest) => {
+  if (!req.user) {
+    return NextResponse.json(
+      { error: 'User not authenticated' },
+      { status: 401 }
+    );
+  }
+
+  const data = await req.json();
+  const validation = validateQuizSaveRequest(data);
+  if (validation.error) {
+    return NextResponse.json({ error: validation.error }, { status: 400 });
+  }
+
+  const {
+    courseId,
+    lessonId,
+    moduleOrder,
+    lessonOrder,
+    questionIndex,
+    selectedAnswerIndex,
+  } = data;
+
+  const userId = req.user.sub;
+
+  const lessonResult = await findLessonAndQuestion(
+    courseId,
+    userId,
+    moduleOrder,
+    lessonOrder,
+    questionIndex
+  );
+
+  if (lessonResult.error) {
+    const status = lessonResult.error.includes('not found') ? 404 : 400;
+    return NextResponse.json({ error: lessonResult.error }, { status });
+  }
+
+  const question = lessonResult.question!;
   const isCorrect = selectedAnswerIndex === question.answerIndex;
   const score = isCorrect ? 1 : 0;
 
-  // Upsert quiz response
   const quizResponse = await QuizResponse.findOneAndUpdate(
     {
       userId: new mongoose.Types.ObjectId(userId),

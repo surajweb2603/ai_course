@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { withAuth, NextAuthRequest } from '@/src/server/http/nextAdapter';
-import { translateText, TranslationRequest } from '@/src/server/services/translation.service';
+import {
+  translateText,
+  TranslationRequest,
+} from '@/src/server/services/translation.service';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -8,7 +11,10 @@ export const runtime = 'nodejs';
 // POST /api/translate/translate - Translate text
 export const POST = withAuth(async (req: NextAuthRequest) => {
   if (!req.user) {
-    return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
+    return NextResponse.json(
+      { error: 'Authentication required' },
+      { status: 401 }
+    );
   }
 
   const { text, targetLanguage, sourceLanguage, context } = await req.json();
@@ -24,13 +30,13 @@ export const POST = withAuth(async (req: NextAuthRequest) => {
     text,
     targetLanguage,
     sourceLanguage,
-    context
+    context,
   };
 
   const result = await translateText(translationRequest);
 
   return NextResponse.json({
     success: true,
-    data: result
+    data: result,
   });
 });

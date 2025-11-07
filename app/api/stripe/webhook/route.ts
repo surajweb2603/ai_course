@@ -11,7 +11,7 @@ const getStripe = () => {
   if (!process.env.STRIPE_SECRET_KEY) {
     return null;
   }
-  
+
   try {
     return new Stripe(process.env.STRIPE_SECRET_KEY, {
       apiVersion: '2025-09-30.clover',
@@ -65,17 +65,26 @@ export const POST = publicHandler(async (req: NextRequest) => {
   switch (event.type) {
     case 'checkout.session.completed': {
       const session = event.data.object as Stripe.Checkout.Session;
-      
-      if (session.mode === 'subscription' && session.payment_status === 'paid') {
+
+      if (
+        session.mode === 'subscription' &&
+        session.payment_status === 'paid'
+      ) {
         const userId = session.metadata?.userId;
-        
+
         if (userId) {
           // Determine the plan based on the price ID
           let plan: 'monthly' | 'yearly' = 'monthly';
-          
-          if (session.line_items?.data?.[0]?.price?.id === process.env.STRIPE_PRICE_YEARLY) {
+
+          if (
+            session.line_items?.data?.[0]?.price?.id ===
+            process.env.STRIPE_PRICE_YEARLY
+          ) {
             plan = 'yearly';
-          } else if (session.line_items?.data?.[0]?.price?.id === process.env.STRIPE_PRICE_MONTHLY) {
+          } else if (
+            session.line_items?.data?.[0]?.price?.id ===
+            process.env.STRIPE_PRICE_MONTHLY
+          ) {
             plan = 'monthly';
           }
 
@@ -90,7 +99,7 @@ export const POST = publicHandler(async (req: NextRequest) => {
     case 'customer.subscription.deleted': {
       const subscription = event.data.object as Stripe.Subscription;
       const userId = subscription.metadata?.userId;
-      
+
       if (userId) {
         if (event.type === 'customer.subscription.deleted') {
           // Downgrade to free plan
@@ -99,13 +108,13 @@ export const POST = publicHandler(async (req: NextRequest) => {
           // Update plan based on subscription
           const priceId = subscription.items.data[0]?.price?.id;
           let plan: 'monthly' | 'yearly' = 'monthly';
-          
+
           if (priceId === process.env.STRIPE_PRICE_YEARLY) {
             plan = 'yearly';
           } else if (priceId === process.env.STRIPE_PRICE_MONTHLY) {
             plan = 'monthly';
           }
-          
+
           await User.findByIdAndUpdate(userId, { plan });
         }
       }

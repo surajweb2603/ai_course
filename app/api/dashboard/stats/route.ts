@@ -10,22 +10,96 @@ export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 
 // Old Course model schema (for backward compatibility)
-const OldCourseSchema = new Schema({
-  userId: { type: Schema.Types.ObjectId, ref: 'User', required: true },
-  title: { type: String, required: true },
-  description: { type: String, default: '' },
-  progress: { type: Number, default: 0, min: 0, max: 100 },
-  lessonsCount: { type: Number, default: 10 },
-  estimatedTimeMinutes: { type: Number, default: 300 },
-  category: { type: String, default: 'General' },
-  status: { 
-    type: String, 
-    enum: ['not_started', 'in_progress', 'completed'], 
-    default: 'not_started' 
+const OldCourseSchema = new Schema(
+  {
+    userId: { type: Schema.Types.ObjectId, ref: 'User', required: true },
+    title: { type: String, required: true },
+    description: { type: String, default: '' },
+    progress: { type: Number, default: 0, min: 0, max: 100 },
+    lessonsCount: { type: Number, default: 10 },
+    estimatedTimeMinutes: { type: Number, default: 300 },
+    category: { type: String, default: 'General' },
+    status: {
+      type: String,
+      enum: ['not_started', 'in_progress', 'completed'],
+      default: 'not_started',
+    },
   },
-}, { timestamps: true, collection: 'OldCourses' });
+  { timestamps: true, collection: 'OldCourses' }
+);
 
-const OldCourseModel = mongoose.models.OldCourse || mongoose.model('OldCourse', OldCourseSchema);
+const OldCourseModel =
+  mongoose.models.OldCourse || mongoose.model('OldCourse', OldCourseSchema);
+
+/**
+ * Calculate statistics from new courses
+ */
+async function calculateNewCourseStats(
+  newCourses: Array<{ _id: mongoose.Types.ObjectId; modules: IModule[] }>,
+  userId: string
+): Promise<{
+  coursesCreated: number;
+  completedCourses: number;
+  totalLearningTimeMinutes: number;
+}> {
+  let completedNewCourses = 0;
+  let totalNewLearningTimeMinutes = 0;
+
+  for (const course of newCourses) {
+    const progress = await Progress.findOne({
+      userId: new mongoose.Types.ObjectId(userId),
+      courseId: course._id,
+    }).lean<{ percent: number }>();
+    if (progress && progress.percent === 100) {
+      completedNewCourses++;
+    }
+
+    const courseLessons = course.modules.reduce(
+      (moduleSum: number, module: IModule) =>
+        moduleSum + (module.lessons?.length ?? 0),
+      0
+    );
+    const courseProgress = progress ? progress.percent : 0;
+    const courseLearningTime = Math.round(
+      (courseProgress / 100) * courseLessons * 30
+    );
+    totalNewLearningTimeMinutes += courseLearningTime;
+  }
+
+  return {
+    coursesCreated: newCourses.length,
+    completedCourses: completedNewCourses,
+    totalLearningTimeMinutes: totalNewLearningTimeMinutes,
+  };
+}
+
+/**
+ * Calculate statistics from old courses
+ */
+function calculateOldCourseStats(oldCourses: any[]): {
+  coursesCreated: number;
+  completedCourses: number;
+  totalLearningTimeMinutes: number;
+} {
+  const oldCoursesCreated = oldCourses.length;
+  const completedOldCourses = oldCourses.filter(
+    (c: any) => c.status === 'completed'
+  ).length;
+  const totalOldLearningTimeMinutes = oldCourses.reduce(
+    (sum: number, course: any) => {
+      return (
+        sum + Math.round((course.estimatedTimeMinutes * course.progress) / 100)
+      );
+    },
+    0
+  );
+
+  return {
+    coursesCreated: oldCoursesCreated,
+    completedCourses: completedOldCourses,
+    totalLearningTimeMinutes: totalOldLearningTimeMinutes,
+  };
+}
 
 // GET /api/dashboard/stats - Get user dashboard statistics
 export const GET = withAuth(async (req: NextAuthRequest) => {
@@ -35,9 +109,10 @@ export const GET = withAuth(async (req: NextAuthRequest) => {
 
   const userId = req.user.sub;
 
-  // Get or create user stats
-  let userStats = await UserStats.findOne({ userId: new mongoose.Types.ObjectId(userId) });
-  
+  let userStats = await UserStats.findOne({
+    userId: new mongoose.Types.ObjectId(userId),
+  });
+
   if (!userStats) {
     userStats = await UserStats.create({
       userId: new mongoose.Types.ObjectId(userId),
@@ -50,69 +125,39 @@ export const GET = withAuth(async (req: NextAuthRequest) => {
     });
   }
 
-  // Get user courses (both old and new courses)
-  const oldCourses = await OldCourseModel.find({ userId: new mongoose.Types.ObjectId(userId) }).sort({ updatedAt: -1 });
+  const oldCourses = await OldCourseModel.find({
+    userId: new mongoose.Types.ObjectId(userId),
+  }).sort({ updatedAt: -1 });
+
   type CourseForStats = {
     _id: mongoose.Types.ObjectId;
     modules: IModule[];
   };
 
-  const newCourses = await Course.find({ userId: new mongoose.Types.ObjectId(userId) })
+  const newCourses = await Course.find({
+    userId: new mongoose.Types.ObjectId(userId),
+  })
     .sort({ updatedAt: -1 })
     .lean<CourseForStats[]>();
 
-  // Calculate statistics from old courses
-  const oldCoursesCreated = oldCourses.length;
-  const completedOldCourses = oldCourses.filter((c: any) => c.status === 'completed').length;
-  
-  // Calculate statistics from new courses using progress data
-  const newCoursesCreated = newCourses.length;
-  let completedNewCourses = 0;
-  let totalNewCourseProgress = 0;
-  let totalNewLearningTimeMinutes = 0;
-  
-  for (const course of newCourses) {
-    const progress = await Progress.findOne({ 
-      userId: new mongoose.Types.ObjectId(userId), 
-      courseId: course._id 
-    }).lean<{ percent: number }>();
-    if (progress && progress.percent === 100) {
-      completedNewCourses++;
-    }
-    totalNewCourseProgress += progress ? progress.percent : 0;
-    
-    // Calculate learning time
-    const courseLessons = course.modules.reduce(
-      (moduleSum: number, module: IModule) => moduleSum + (module.lessons?.length ?? 0),
-      0
-    );
-    const courseProgress = progress ? progress.percent : 0;
-    const courseLearningTime = Math.round((courseProgress / 100) * courseLessons * 30);
-    totalNewLearningTimeMinutes += courseLearningTime;
-  }
-  
-  // Calculate total learning time from old courses
-  const totalOldLearningTimeMinutes = oldCourses.reduce((sum: number, course: any) => {
-    return sum + Math.round((course.estimatedTimeMinutes * course.progress) / 100);
-  }, 0);
-  
-  // Get certificates earned
-  const certificatesEarned = await Certificate.countDocuments({ 
-    userId: new mongoose.Types.ObjectId(userId) 
-  });
-  
-  // Combined statistics
-  const coursesCreated = oldCoursesCreated + newCoursesCreated;
-  const completedCourses = completedOldCourses + completedNewCourses;
-  const completionRate = coursesCreated > 0 
-    ? Math.round((completedCourses / coursesCreated) * 100) 
-    : 0;
-  const totalLearningTimeMinutes = totalOldLearningTimeMinutes + totalNewLearningTimeMinutes;
-  
-  // Calculate achievements based on certificates
-  let achievements = certificatesEarned;
+  const oldStats = calculateOldCourseStats(oldCourses);
+  const newStats = await calculateNewCourseStats(newCourses, userId);
 
-  // Update stats if they've changed
+  const certificatesEarned = await Certificate.countDocuments({
+    userId: new mongoose.Types.ObjectId(userId),
+  });
+
+  const coursesCreated = oldStats.coursesCreated + newStats.coursesCreated;
+  const completedCourses =
+    oldStats.completedCourses + newStats.completedCourses;
+  const completionRate =
+    coursesCreated > 0
+      ? Math.round((completedCourses / coursesCreated) * 100)
+      : 0;
+  const totalLearningTimeMinutes =
+    oldStats.totalLearningTimeMinutes + newStats.totalLearningTimeMinutes;
+  const achievements = certificatesEarned;
+
   if (
     userStats.coursesCreated !== coursesCreated ||
     userStats.completionRate !== completionRate ||
@@ -129,9 +174,10 @@ export const GET = withAuth(async (req: NextAuthRequest) => {
   // Format learning time
   const learningTimeHours = Math.floor(totalLearningTimeMinutes / 60);
   const learningTimeMinutesRemainder = totalLearningTimeMinutes % 60;
-  const learningTimeFormatted = learningTimeHours > 0 
-    ? `${learningTimeHours}h${learningTimeMinutesRemainder > 0 ? ` ${learningTimeMinutesRemainder}m` : ''}`
-    : `${learningTimeMinutesRemainder}m`;
+  const learningTimeFormatted =
+    learningTimeHours > 0
+      ? `${learningTimeHours}h${learningTimeMinutesRemainder > 0 ? ` ${learningTimeMinutesRemainder}m` : ''}`
+      : `${learningTimeMinutesRemainder}m`;
 
   return NextResponse.json({
     stats: {

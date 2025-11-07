@@ -1,3 +1,4 @@
+
 import axios, { AxiosInstance, AxiosRequestConfig } from 'axios';
 
 // When deployed on Vercel, use relative paths (empty string) or the provided URL

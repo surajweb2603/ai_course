@@ -1,3 +1,4 @@
+
 import mongoose, { Schema, Document, Types } from 'mongoose';
 
 // TypeScript interfaces

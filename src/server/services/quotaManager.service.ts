@@ -1,3 +1,4 @@
+
 /**
  * Quota Management Service
  * Helps manage API quotas and provides fallback strategies
@@ -38,7 +39,8 @@ class QuotaManager {
     if (timeSinceLastCheck > this.QUOTA_CHECK_INTERVAL) {
       
       try {
-        const axios = require('axios');
+        const axiosModule = await import('axios');
+        const axios = axiosModule.default || axiosModule;
         const response = await axios.get('https://www.googleapis.com/youtube/v3/search', {
           params: {
             part: 'snippet',

@@ -8,9 +8,9 @@ export const runtime = 'nodejs';
 // GET /api/translate/languages - Get supported languages
 export const GET = publicHandler(async (req: NextRequest) => {
   const languages = getSupportedLanguages();
-  
+
   return NextResponse.json({
     success: true,
-    data: languages
+    data: languages,
   });
 });

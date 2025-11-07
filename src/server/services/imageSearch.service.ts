@@ -1,3 +1,4 @@
+
 import axios from 'axios';
 
 // Type declaration for g-i-s library
@@ -549,12 +550,13 @@ export async function searchGoogleImages(query: string, numResults: number = 5):
     const validatedResults = transformedResults.filter((result: ImageSearchResult) => {
       const isValid = validateEducationalImage(result, query);
       if (!isValid) {
+        // Filter out invalid results
       }
       return isValid;
     });
 
     if (validatedResults.length > 0) {
-    } else {
+      // Results validated successfully
     }
 
     return validatedResults;
@@ -583,8 +585,8 @@ export async function searchGoogleImages(query: string, numResults: number = 5):
       
       
     } catch (error: any) {
+      // Ignore g-i-s errors
     }
-  } else {
   }
   
   // Custom Google scraping fallback (static HTML strategies)
@@ -595,6 +597,7 @@ export async function searchGoogleImages(query: string, numResults: number = 5):
       return validatedCustomResults;
     }
   } catch (error: any) {
+    // Ignore custom scraper errors
   }
   
   // Advanced Google scraping fallback (aggressive heuristics)
@@ -605,6 +608,7 @@ export async function searchGoogleImages(query: string, numResults: number = 5):
       return validatedAdvancedResults;
     }
   } catch (error: any) {
+    // Ignore advanced scraper errors
   }
 
   // If g-i-s fails, try alternative image sources
@@ -615,6 +619,7 @@ export async function searchGoogleImages(query: string, numResults: number = 5):
       return alternativeResults;
     }
   } catch (error: any) {
+    // Ignore alternative source errors
   }
   
   throw new Error('Google Images search failed: All methods blocked');
@@ -692,6 +697,7 @@ async function searchAlternativeImageSources(query: string, numResults: number):
       }
       
     } catch (error: any) {
+      // Ignore alternative source errors
     }
   }
   
@@ -788,13 +794,15 @@ function extractImageUrlsFromHTML(html: string, query: string): string[] {
  * Advanced Google Images scraper that bypasses all blocking
  * Uses multiple sophisticated techniques to avoid detection
  */
-async function advancedGoogleImagesScraper(query: string): Promise<GISResult[]> {
-  
-  // Multiple sophisticated strategies to bypass Google's blocking
-  const strategies = [
+/**
+ * Build scraping strategies for Google Images
+ */
+function buildGoogleImageStrategies(query: string): Array<{ name: string; url: string; headers: Record<string, string> }> {
+  const baseUrl = `https://www.google.com/search?q=${encodeURIComponent(query)}&tbm=isch&safe=active`;
+  return [
     {
       name: 'Stealth Desktop',
-      url: `https://www.google.com/search?q=${encodeURIComponent(query)}&tbm=isch&safe=active&tbs=isz:m`,
+      url: `${baseUrl}&tbs=isz:m`,
       headers: {
         'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
         'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7',
@@ -812,7 +820,7 @@ async function advancedGoogleImagesScraper(query: string): Promise<GISResult[]> 
     },
     {
       name: 'Mobile Safari',
-      url: `https://www.google.com/search?q=${encodeURIComponent(query)}&tbm=isch&safe=active`,
+      url: baseUrl,
       headers: {
         'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1',
         'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
@@ -824,7 +832,7 @@ async function advancedGoogleImagesScraper(query: string): Promise<GISResult[]> 
     },
     {
       name: 'Chrome Windows',
-      url: `https://www.google.com/search?q=${encodeURIComponent(query)}&tbm=isch&safe=active&tbs=isz:m`,
+      url: `${baseUrl}&tbs=isz:m`,
       headers: {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
         'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7',
@@ -843,7 +851,7 @@ async function advancedGoogleImagesScraper(query: string): Promise<GISResult[]> 
     },
     {
       name: 'Firefox Linux',
-      url: `https://www.google.com/search?q=${encodeURIComponent(query)}&tbm=isch&safe=active`,
+      url: baseUrl,
       headers: {
         'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64; rv:109.0) Gecko/20100101 Firefox/119.0',
         'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
@@ -859,53 +867,61 @@ async function advancedGoogleImagesScraper(query: string): Promise<GISResult[]> 
       }
     }
   ];
+}
+
+/**
+ * Execute a scraping strategy
+ */
+async function executeScrapingStrategy(strategy: { name: string; url: string; headers: Record<string, string> }, query: string, index: number): Promise<GISResult[] | null> {
+  if (index > 0) {
+    const delay = Math.random() * 2000 + 1000;
+    await new Promise(resolve => setTimeout(resolve, delay));
+  }
+  
+  try {
+    const response = await axios.get(strategy.url, {
+      headers: strategy.headers,
+      timeout: 20000,
+      validateStatus: (status) => status < 500,
+      transformRequest: [(data: any) => data]
+    });
+    
+    if (response.status === 200 && (response.data as string).length > 1000) {
+      const imageUrls = extractImageUrlsAdvanced(String(response.data), query);
+      if (imageUrls.length > 0) {
+        return imageUrls.map((url, idx) => ({
+          url: url,
+          title: `${query} - Image ${idx + 1}`,
+          description: `Image related to ${query}`,
+          domain: extractDomain(url),
+          height: 0,
+          width: 0,
+          thumbnail: url
+        }));
+      }
+    } else if (response.status === 429) {
+      await new Promise(resolve => setTimeout(resolve, 5000));
+    }
+  } catch (error: any) {
+    if (error.response?.status === 429) {
+      await new Promise(resolve => setTimeout(resolve, 5000));
+    }
+  }
+  
+  return null;
+}
+
+/**
+ * Advanced Google Images scraper that bypasses all blocking
+ * Uses multiple sophisticated techniques to avoid detection
+ */
+async function advancedGoogleImagesScraper(query: string): Promise<GISResult[]> {
+  const strategies = buildGoogleImageStrategies(query);
   
   for (let i = 0; i < strategies.length; i++) {
-    const strategy = strategies[i];
-    
-    try {
-      // Add random delay to avoid detection
-      if (i > 0) {
-        const delay = Math.random() * 2000 + 1000; // 1-3 seconds
-        await new Promise(resolve => setTimeout(resolve, delay));
-      }
-      
-      const response = await axios.get(strategy.url, {
-        headers: strategy.headers,
-        timeout: 20000,
-        validateStatus: (status) => status < 500,
-        // Add request interceptor to modify requests
-        transformRequest: [(data: any) => data]
-      });
-      
-      if (response.status === 200 && (response.data as string).length > 1000) {
-        const imageUrls = extractImageUrlsAdvanced(String(response.data), query);
-        
-        if (imageUrls.length > 0) {
-          // Convert to GISResult format
-          const results: GISResult[] = imageUrls.map((url, index) => ({
-            url: url,
-            title: `${query} - Image ${index + 1}`,
-            description: `Image related to ${query}`,
-            domain: extractDomain(url),
-            height: 0,
-            width: 0,
-            thumbnail: url
-          }));
-          
-          return results;
-        }
-      } else if (response.status === 429) {
-        // Wait longer before next attempt
-        await new Promise(resolve => setTimeout(resolve, 5000));
-      } else {
-      }
-      
-    } catch (error: any) {
-      
-      if (error.response?.status === 429) {
-        await new Promise(resolve => setTimeout(resolve, 5000));
-      }
+    const result = await executeScrapingStrategy(strategies[i], query, i);
+    if (result) {
+      return result;
     }
   }
   
@@ -1039,6 +1055,7 @@ export async function searchBingImages(query: string, numResults: number = 5): P
         const validatedResults = results.filter((result: ImageSearchResult) => {
           const isValid = validateEducationalImage(result, query);
           if (!isValid) {
+            // Filter out invalid results
           }
           return isValid;
         });

@@ -23,11 +23,10 @@ function formatDate(dateString: Date): string {
   return date.toLocaleDateString('en-US', {
     year: 'numeric',
     month: 'long',
-    day: 'numeric'
+    day: 'numeric',
   });
 }
 
-// Helper function to generate verification HTML
 function generateVerificationHTML(data: {
   valid: boolean;
   certificate: {
@@ -42,7 +41,26 @@ function generateVerificationHTML(data: {
   code?: string;
 }): string {
   if (!data.valid || data.error) {
-    return `
+    return renderVerificationError(data);
+  }
+
+  return renderVerificationSuccess(data);
+}
+
+function renderVerificationError(data: {
+  error?: string;
+  code?: string;
+}): string {
+  const codeBlock = data.code
+    ? `
+        <div class="bg-gray-50 rounded-lg p-4 mb-6">
+            <p class="text-sm text-gray-500 mb-1">Certificate Code</p>
+            <p class="text-lg font-mono font-semibold text-gray-900">${data.code}</p>
+        </div>
+        `
+    : '';
+
+  return `
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -60,21 +78,26 @@ function generateVerificationHTML(data: {
         </div>
         <h1 class="text-3xl font-bold text-gray-900 mb-3">Certificate Not Found</h1>
         <p class="text-gray-600 mb-6">${data.error || 'The certificate code you entered is invalid or does not exist.'}</p>
-        ${data.code ? `
-        <div class="bg-gray-50 rounded-lg p-4 mb-6">
-            <p class="text-sm text-gray-500 mb-1">Certificate Code</p>
-            <p class="text-lg font-mono font-semibold text-gray-900">${data.code}</p>
-        </div>
-        ` : ''}
+        ${codeBlock}
     </div>
 </body>
 </html>`;
-  }
+}
 
+function renderVerificationSuccess(data: {
+  certificate: {
+    name: string;
+    courseTitle: string;
+    issuedAt: Date;
+    code: string;
+  };
+  user: any;
+  course: any;
+}): string {
   const formattedDate = formatDate(data.certificate.issuedAt);
   const userName = data.certificate.name || data.user?.name || 'Unknown';
-  const userEmail = data.user?.email || '';
-  const courseTitle = data.certificate.courseTitle || data.course?.title || 'Unknown Course';
+  const courseTitle =
+    data.certificate.courseTitle || data.course?.title || 'Unknown Course';
 
   return `
 <!DOCTYPE html>
@@ -131,86 +154,103 @@ function generateVerificationHTML(data: {
 }
 
 // GET /api/certificates/verify/:code - Verify certificate by code
-export const GET = publicHandler(async (
-  req: NextRequest,
-  { params }: { params: { code: string } }
-) => {
-  const { code } = params;
+export const GET = publicHandler(
+  async (req: NextRequest, { params }: { params: { code: string } }) => {
+    const { code } = params;
 
-  if (!code) {
-    if (shouldReturnHtml(req)) {
-      return new NextResponse(generateVerificationHTML({ 
-        valid: false, 
-        certificate: {} as any, 
-        user: null, 
-        course: null,
-        error: 'Certificate code is required',
-        code: ''
-      }), {
-        status: 400,
-        headers: { 'Content-Type': 'text/html' }
-      });
-    }
-    return NextResponse.json({ error: 'Certificate code is required' }, { status: 400 });
-  }
-
-  try {
-    // Find certificate by code
-    const certificate = await Certificate.findOne({ code })
-      .populate('userId', 'name email')
-      .populate('courseId', 'title description');
-
-    if (!certificate) {
+    if (!code) {
       if (shouldReturnHtml(req)) {
-        return new NextResponse(generateVerificationHTML({ 
-          valid: false, 
-          certificate: {} as any, 
-          user: null, 
-          course: null,
-          error: 'Certificate not found or invalid code',
-          code
-        }), {
-          status: 404,
-          headers: { 'Content-Type': 'text/html' }
+        return new NextResponse(
+          generateVerificationHTML({
+            valid: false,
+            certificate: {} as any,
+            user: null,
+            course: null,
+            error: 'Certificate code is required',
+            code: '',
+          }),
+          {
+            status: 400,
+            headers: { 'Content-Type': 'text/html' },
+          }
+        );
+      }
+      return NextResponse.json(
+        { error: 'Certificate code is required' },
+        { status: 400 }
+      );
+    }
+
+    try {
+      // Find certificate by code
+      const certificate = await Certificate.findOne({ code })
+        .populate('userId', 'name email')
+        .populate('courseId', 'title description');
+
+      if (!certificate) {
+        if (shouldReturnHtml(req)) {
+          return new NextResponse(
+            generateVerificationHTML({
+              valid: false,
+              certificate: {} as any,
+              user: null,
+              course: null,
+              error: 'Certificate not found or invalid code',
+              code,
+            }),
+            {
+              status: 404,
+              headers: { 'Content-Type': 'text/html' },
+            }
+          );
+        }
+        return NextResponse.json(
+          { error: 'Certificate not found or invalid code' },
+          { status: 404 }
+        );
+      }
+
+      const responseData = {
+        valid: true,
+        certificate: {
+          name: certificate.nameSnapshot,
+          courseTitle: certificate.courseTitleSnapshot,
+          issuedAt: certificate.issuedAt,
+          code: certificate.code,
+        },
+        user: certificate.userId,
+        course: certificate.courseId,
+      };
+
+      // Check if request is from a browser (wants HTML)
+      if (shouldReturnHtml(req)) {
+        return new NextResponse(generateVerificationHTML(responseData), {
+          headers: { 'Content-Type': 'text/html' },
         });
       }
-      return NextResponse.json({ error: 'Certificate not found or invalid code' }, { status: 404 });
-    }
 
-    const responseData = {
-      valid: true,
-      certificate: {
-        name: certificate.nameSnapshot,
-        courseTitle: certificate.courseTitleSnapshot,
-        issuedAt: certificate.issuedAt,
-        code: certificate.code
-      },
-      user: certificate.userId,
-      course: certificate.courseId
-    };
-
-    // Check if request is from a browser (wants HTML)
-    if (shouldReturnHtml(req)) {
-      return new NextResponse(generateVerificationHTML(responseData), {
-        headers: { 'Content-Type': 'text/html' }
-      });
+      // Return JSON for API requests
+      return NextResponse.json(responseData);
+    } catch (error: any) {
+      if (shouldReturnHtml(req)) {
+        return new NextResponse(
+          generateVerificationHTML({
+            valid: false,
+            certificate: {} as any,
+            user: null,
+            course: null,
+            error: 'Failed to verify certificate',
+          }),
+          {
+            status: 500,
+            headers: { 'Content-Type': 'text/html' },
+          }
+        );
+      }
+      return NextResponse.json(
+        { error: 'Failed to verify certificate' },
+        { status: 500 }
+      );
     }
-
-    // Return JSON for API requests
-    return NextResponse.json(responseData);
-  } catch (error: any) {
-    if (shouldReturnHtml(req)) {
-      return new NextResponse(generateVerificationHTML({ 
-        valid: false, 
-        certificate: {} as any, 
-        user: null, 
-        course: null,
-        error: 'Failed to verify certificate'
-      }), {
-        status: 500,
-        headers: { 'Content-Type': 'text/html' }
-      });
-    }
-    return NextResponse.json({ error: 'Failed to verify certificate' }, { status: 500 });
   }
-});
+);

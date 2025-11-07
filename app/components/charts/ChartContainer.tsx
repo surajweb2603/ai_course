@@ -8,7 +8,11 @@ interface ChartContainerProps {
   className?: string;
 }
 
-export default function ChartContainer({ title, children, className = '' }: ChartContainerProps) {
+export default function ChartContainer({
+  title,
+  children,
+  className = '',
+}: ChartContainerProps) {
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
@@ -17,9 +21,7 @@ export default function ChartContainer({ title, children, className = '' }: Char
       className={className}
     >
       <h3 className="text-lg font-semibold text-gray-900 mb-4">{title}</h3>
-      <div className="relative">
-        {children}
-      </div>
+      <div className="relative">{children}</div>
     </motion.div>
   );
 }

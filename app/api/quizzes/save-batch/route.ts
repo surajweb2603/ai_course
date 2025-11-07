@@ -10,14 +10,19 @@ export const runtime = 'nodejs';
 // POST /api/quizzes/save-batch - Save multiple quiz responses at once
 export const POST = withAuth(async (req: NextAuthRequest) => {
   if (!req.user) {
-    return NextResponse.json({ error: 'User not authenticated' }, { status: 401 });
+    return NextResponse.json(
+      { error: 'User not authenticated' },
+      { status: 401 }
+    );
   }
 
   const { courseId, lessonId, responses } = await req.json();
 
   if (!courseId || !lessonId || !Array.isArray(responses)) {
     return NextResponse.json(
-      { error: 'Missing required fields: courseId, lessonId, responses (array)' },
+      {
+        error: 'Missing required fields: courseId, lessonId, responses (array)',
+      },
       { status: 400 }
     );
   }
@@ -26,7 +31,9 @@ export const POST = withAuth(async (req: NextAuthRequest) => {
 
   // Verify course exists
   type CourseLean = {
-    modules: Array<IModule & { lessons: Array<ILesson & { content?: ILessonContent }> }>;
+    modules: Array<
+      IModule & { lessons: Array<ILesson & { content?: ILessonContent }> }
+    >;
   };
 
   const course = await Course.findOne({
@@ -35,16 +42,24 @@ export const POST = withAuth(async (req: NextAuthRequest) => {
   }).lean<CourseLean>();
 
   if (!course) {
-    return NextResponse.json({ error: 'Course not found or access denied' }, { status: 404 });
+    return NextResponse.json(
+      { error: 'Course not found or access denied' },
+      { status: 404 }
+    );
   }
 
   // Process each response
   const savedResponses: any[] = [];
   for (const response of responses) {
-    const { moduleOrder, lessonOrder, questionIndex, selectedAnswerIndex } = response;
+    const { moduleOrder, lessonOrder, questionIndex, selectedAnswerIndex } =
+      response;
 
-    if (moduleOrder === undefined || lessonOrder === undefined || 
-        questionIndex === undefined || selectedAnswerIndex === undefined) {
+    if (
+      moduleOrder === undefined ||
+      lessonOrder === undefined ||
+      questionIndex === undefined ||
+      selectedAnswerIndex === undefined
+    ) {
       continue; // Skip invalid responses
     }
 

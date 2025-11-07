@@ -1,3 +1,4 @@
+
 /**
  * Format date for certificate display
  */

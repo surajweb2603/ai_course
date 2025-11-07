@@ -1,3 +1,4 @@
+
 import OpenAI from 'openai';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 
@@ -16,13 +17,11 @@ function initializeAIProviders() {
       organization: process.env.OPENAI_ORGANIZATION,
       project: process.env.OPENAI_PROJECT,
     });
-  } else {
   }
   
   // Initialize Google Gemini client (fallback)
   if (process.env.GOOGLE_API_KEY) {
     genAIInstance = new GoogleGenerativeAI(process.env.GOOGLE_API_KEY);
-  } else {
   }
   
   initialized = true;
