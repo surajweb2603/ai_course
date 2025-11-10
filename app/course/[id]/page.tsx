@@ -1803,7 +1803,7 @@ export default function CoursePage() {
         moduleTitle="Course Overview"
         lessonTitle="General Course Questions"
         lessonContent=""
-        language="en"
+        language={course.language}
         isOpen={isChatOpen}
         onClose={() => setIsChatOpen(false)}
       />

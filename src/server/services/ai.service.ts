@@ -77,14 +77,44 @@ export async function generateCourseOutline(
     throw new Error('Topic is required');
   }
 
+  const generationInput: GenerateOutlineInput = {
+    ...input,
+    topic: topic.trim(),
+    language: language || 'en',
+  };
+
+  return await generateOutlineWithProviders(generationInput);
+}
+
+async function generateOutlineWithProviders(
+  input: GenerateOutlineInput
+): Promise<GeneratedOutline> {
+  // For Hindi and other languages that OpenAI doesn't support in JSON mode, use Gemini directly
+  const language = input.language || 'en';
+  const unsupportedLanguages = ['hi', 'ar', 'zh', 'ja', 'ko', 'th']; // Languages OpenAI JSON mode doesn't support well
+  
+  // If language is unsupported by OpenAI JSON mode, use Gemini directly
+  if (unsupportedLanguages.includes(language.toLowerCase())) {
+    const gemini = getGemini();
+    if (gemini) {
+      return await generateWithGemini(input);
+    }
+    // If Gemini not available, still try OpenAI but it will fail gracefully
+  }
+  
   // Try OpenAI first (primary)
   const openai = getOpenAI();
   if (openai) {
     try {
       return await generateWithOpenAI(input);
     } catch (error: any) {
+      // Check if it's a language override error (OpenAI doesn't support certain languages in JSON mode)
+      const errorMessage = error?.message || error?.error?.message || String(error || '');
+      const isLanguageOverrideError = errorMessage.toLowerCase().includes('language override unsupported') ||
+                                      errorMessage.toLowerCase().includes('language override is unsupported') ||
+                                      errorMessage.toLowerCase().includes('language_override');
       
-      // Only fallback to Gemini if OpenAI had a non-quota error
+      // Fallback to Gemini for language override errors or other errors
       const gemini = getGemini();
       if (gemini) {
         try {
@@ -110,7 +140,11 @@ export async function generateCourseOutline(
 }
 
 /**
- * Generate outline using OpenAI
+ * Generate outline using OpenAI (primary provider)
+ * 
+ * The prompt injects the language parameter directly so every module, lesson title, 
+ * and summary is returned in the specified language (e.g., Hindi 'hi').
+ * Temperature is lowered from 0.5 to 0.3 on retry to stabilize deterministic phrasing.
  */
 async function generateWithOpenAI(input: GenerateOutlineInput): Promise<GeneratedOutline> {
   const openai = getOpenAI();
@@ -129,20 +163,25 @@ async function generateWithOpenAI(input: GenerateOutlineInput): Promise<Generate
   const subtopicsText = processedSubtopics.length > 0 ? processedSubtopics.join(', ') : 'none';
   
   const userPrompt = `Topic: ${topic}
+
 Language: ${language}
+
 Optional subtopics: ${subtopicsText}
 
 Produce JSON with:
-- title (string): A clear, engaging course title
-- language (BCP-47 code): The language code (e.g., 'en', 'es', 'fr')
-- summary (string): A concise course summary (max 80 words)
+
+- title (string): A clear, engaging course title in ${language}
+- language (BCP-47 code): The language code (e.g., 'en', 'es', 'fr', 'hi')
+- summary (string): A concise course summary in ${language} (max 80 words)
 - modules (array): 6-8 modules, each with:
   - order (number): Sequential order starting from 1
-  - title (string): Module title
+  - title (string): Module title in ${language}
   - lessons (array): 3-5 lessons per module, each with:
     - order (number): Sequential order starting from 1
-    - title (string): Lesson title
-    - summary (string): Brief lesson summary (max 40 words)
+    - title (string): Lesson title in ${language}
+    - summary (string): Brief lesson summary in ${language} (max 40 words)
+
+All content (title, summary, module titles, lesson titles, and lesson summaries) must be written entirely in ${language}.
 
 Only return valid JSON. No markdown, no explanations.`;
 
@@ -183,25 +222,39 @@ async function callOpenAI(userPrompt: string, temperature: number): Promise<stri
 
   const systemPrompt = `You are an expert course designer. You create well-structured, comprehensive course outlines. 
 You MUST respond with ONLY valid JSON, no markdown formatting, no code blocks, no explanations.
-The JSON must be properly formatted and parseable.`;
+The JSON must be properly formatted and parseable.
+When a language is specified, ALL content (titles, summaries) must be written entirely in that language.`;
 
-  const completion = await openai.chat.completions.create({
-    model: process.env.OPENAI_MODEL || 'gpt-4o',
-    messages: [
-      { role: 'system', content: systemPrompt },
-      { role: 'user', content: userPrompt },
-    ],
-    temperature,
-    response_format: { type: 'json_object' },
-  });
+  try {
+    const completion = await openai.chat.completions.create({
+      model: process.env.OPENAI_MODEL || 'gpt-4o',
+      messages: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: userPrompt },
+      ],
+      temperature,
+      response_format: { type: 'json_object' },
+    });
 
-  const content = completion.choices[0]?.message?.content;
-  
-  if (!content) {
-    throw new Error('No response from OpenAI');
+    const content = completion.choices[0]?.message?.content;
+    
+    if (!content) {
+      throw new Error('No response from OpenAI');
+    }
+
+    return content;
+  } catch (error: any) {
+    // Check for language override error - OpenAI doesn't support certain languages in JSON mode
+    const errorMessage = error?.message || error?.error?.message || error?.response?.data?.error?.message || String(error || '');
+    const isLanguageOverrideError = errorMessage.toLowerCase().includes('language override unsupported') ||
+                                    errorMessage.toLowerCase().includes('language override is unsupported') ||
+                                    errorMessage.toLowerCase().includes('language_override');
+    
+    if (isLanguageOverrideError) {
+      throw new Error(`Language override unsupported: ${errorMessage}`);
+    }
+    throw error;
   }
-
-  return content;
 }
 
 /**
@@ -265,9 +318,55 @@ function parseOutlineResponse(response: string): GeneratedOutline {
 }
 
 /**
- * Generate outline using Google Gemini (fallback)
+ * Extract retry delay from Gemini error response
  */
-async function generateWithGemini(input: GenerateOutlineInput): Promise<GeneratedOutline> {
+function extractRetryDelay(error: any): number {
+  try {
+    // Try to extract retry delay from error details
+    const errorMessage = error?.message || '';
+    const retryMatch = errorMessage.match(/Please retry in ([\d.]+)s/i);
+    if (retryMatch) {
+      return Math.ceil(parseFloat(retryMatch[1]) * 1000); // Convert to milliseconds
+    }
+    
+    // Try to extract from error details/RetryInfo
+    if (error?.details) {
+      for (const detail of error.details) {
+        if (detail['@type'] === 'type.googleapis.com/google.rpc.RetryInfo' && detail.retryDelay) {
+          const seconds = parseFloat(detail.retryDelay.replace('s', ''));
+          return Math.ceil(seconds * 1000);
+        }
+      }
+    }
+  } catch (e) {
+    // Ignore parsing errors
+  }
+  
+  // Default retry delay: 20 seconds
+  return 20000;
+}
+
+/**
+ * Check if error is a Gemini quota error
+ */
+function isGeminiQuotaError(error: any): boolean {
+  const errorMessage = error?.message || '';
+  return (
+    errorMessage.includes('429') ||
+    errorMessage.includes('quota exceeded') ||
+    errorMessage.includes('Quota exceeded') ||
+    error?.status === 429
+  );
+}
+
+/**
+ * Generate outline using Google Gemini (fallback for languages like Hindi)
+ * 
+ * Used when OpenAI JSON mode doesn't support certain languages (hi, ar, zh, ja, ko, th).
+ * The prompt injects the language parameter directly so every module, lesson title, 
+ * and summary is returned in the specified language.
+ */
+async function generateWithGemini(input: GenerateOutlineInput, retryCount: number = 0): Promise<GeneratedOutline> {
   const gemini = getGemini();
   if (!gemini) {
     throw new Error('Gemini client not available');
@@ -286,7 +385,9 @@ async function generateWithGemini(input: GenerateOutlineInput): Promise<Generate
   const prompt = `Generate a comprehensive course outline in JSON format.
 
 Topic: ${topic}
+
 Language: ${language}
+
 Optional subtopics: ${subtopicsText}
 
 Return ONLY valid JSON with this exact structure (no markdown, no code blocks):
@@ -313,7 +414,7 @@ Requirements:
 - Include 6-8 modules
 - Each module should have 3-5 lessons
 - Use sequential order numbers starting from 1
-- All content must be in ${language}
+- All content (title, summary, module titles, lesson titles, and lesson summaries) must be written entirely in ${language}
 - Return ONLY the JSON, no other text`;
 
   try {
@@ -334,10 +435,19 @@ Requirements:
     }
 
     let outline = parseOutlineResponse(text);
-    outline = enforceOutlineConstraints(outline);
+    outline = enforceOutlineConstraints(outline, userPlan);
     
     return outline;
   } catch (error: any) {
+    // Handle quota errors with retry (but limit retries to avoid timeout)
+    if (isGeminiQuotaError(error) && retryCount < 1) { // Reduced to 1 retry to avoid timeout
+      const retryDelay = extractRetryDelay(error);
+      // Cap retry delay at 30 seconds to avoid timeout
+      const cappedDelay = Math.min(retryDelay, 30000);
+      await new Promise(resolve => setTimeout(resolve, cappedDelay));
+      return await generateWithGemini(input, retryCount + 1);
+    }
+    
     // Retry once if parsing fails
     if (error.message.includes('parse') || error.message.includes('JSON')) {
       
@@ -369,9 +479,16 @@ Requirements:
 
 /**
  * Enforce size constraints on the outline
+ * 
+ * Normalizes the payload by:
+ * - Truncating course summary (<=500 chars) and lesson summaries (<=250 chars) without altering language
+ * - Reordering modules/lessons sequentially (order starts at 1)
+ * - Applying plan-based limits: free users see at most two modules, paid users get up to eight
+ * 
+ * Language integrity is preserved as the original text is unmodified except for truncation.
  */
 function enforceOutlineConstraints(outline: GeneratedOutline, userPlan?: string): GeneratedOutline {
-  // Limit summary to reasonable length
+  // Limit summary to reasonable length (preserves language)
   if (outline.summary.length > 500) {
     outline.summary = outline.summary.substring(0, 497) + '...';
   }
@@ -427,3 +544,4 @@ function enforceOutlineConstraints(outline: GeneratedOutline, userPlan?: string)
 
   return outline;
 }
+

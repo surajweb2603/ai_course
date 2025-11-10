@@ -208,6 +208,11 @@ function validateTopic(topic: string, setError: (error: string) => void): boolea
 
 /**
  * Generate course outline
+ * 
+ * Frontend trigger for Hindi Course Generation Workflow.
+ * When user selects Hindi ('hi') in the language dropdown, this function
+ * calls the generate.outline API with the language parameter, which maps
+ * to the BCP-47 code expected downstream.
  */
 async function generateOutline(
   topic: string,

@@ -226,14 +226,32 @@ async function generateWithRetry<T>(
 export async function generateLessonContent(
   input: GenerateLessonContentInput
 ): Promise<LessonContentDTO> {
+  // For Hindi and other languages that OpenAI doesn't support in JSON mode, use Gemini directly
+  const language = input.language || 'en';
+  const unsupportedLanguages = ['hi', 'ar', 'zh', 'ja', 'ko', 'th']; // Languages OpenAI JSON mode doesn't support well
+  
+  // If language is unsupported by OpenAI JSON mode, use Gemini directly
+  if (unsupportedLanguages.includes(language.toLowerCase())) {
+    const gemini = getGemini();
+    if (gemini) {
+      return await generateWithRetry(() => generateWithGemini(input), 'Gemini');
+    }
+    // If Gemini not available, still try OpenAI but it will fail gracefully
+  }
+  
   // Try OpenAI first (primary)
   const openai = getOpenAI();
   if (openai) {
     try {
       return await generateWithRetry(() => generateWithOpenAI(input), 'OpenAI');
     } catch (error: any) {
+      // Check if it's a language override error (OpenAI doesn't support certain languages in JSON mode)
+      const errorMessage = error?.message || error?.error?.message || String(error || '');
+      const isLanguageOverrideError = errorMessage.toLowerCase().includes('language override unsupported') ||
+                                      errorMessage.toLowerCase().includes('language override is unsupported') ||
+                                      errorMessage.toLowerCase().includes('language_override');
       
-      // Fallback to Gemini
+      // Fallback to Gemini for language override errors or other errors
       const gemini = getGemini();
       if (gemini) {
         try {
@@ -257,6 +275,8 @@ export async function generateLessonContent(
   // No AI provider configured
   throw new Error('No AI provider configured. Please set OPENAI_API_KEY or GOOGLE_API_KEY in the project .env file.');
 }
+
+
 
 /**
  * Generate content using OpenAI
@@ -309,6 +329,16 @@ Output strict JSON only as per schema. No prose. No markdown code blocks. Only v
     enhancedContent = await enhanceMediaWithVideos(enhancedContent, input.lessonTitle);
     return enhancedContent;
   } catch (error: any) {
+    // Check for language override error - OpenAI doesn't support certain languages in JSON mode
+    const errorMessage = error?.message || error?.error?.message || error?.response?.data?.error?.message || String(error || '');
+    const isLanguageOverrideError = errorMessage.toLowerCase().includes('language override unsupported') ||
+                                    errorMessage.toLowerCase().includes('language override is unsupported') ||
+                                    errorMessage.toLowerCase().includes('language_override');
+    
+    if (isLanguageOverrideError) {
+      throw new Error(`Language override unsupported: ${errorMessage}`);
+    }
+    
     // Retry once with lower temperature if parsing fails
     if (error.message.includes('parse') || error.message.includes('JSON')) {
       
@@ -342,9 +372,51 @@ Output strict JSON only as per schema. No prose. No markdown code blocks. Only v
 
 
 /**
+ * Extract retry delay from Gemini error response
+ */
+function extractRetryDelay(error: any): number {
+  try {
+    // Try to extract retry delay from error details
+    const errorMessage = error?.message || '';
+    const retryMatch = errorMessage.match(/Please retry in ([\d.]+)s/i);
+    if (retryMatch) {
+      return Math.ceil(parseFloat(retryMatch[1]) * 1000); // Convert to milliseconds
+    }
+    
+    // Try to extract from error details/RetryInfo
+    if (error?.details) {
+      for (const detail of error.details) {
+        if (detail['@type'] === 'type.googleapis.com/google.rpc.RetryInfo' && detail.retryDelay) {
+          const seconds = parseFloat(detail.retryDelay.replace('s', ''));
+          return Math.ceil(seconds * 1000);
+        }
+      }
+    }
+  } catch (e) {
+    // Ignore parsing errors
+  }
+  
+  // Default retry delay: 20 seconds
+  return 20000;
+}
+
+/**
+ * Check if error is a Gemini quota error
+ */
+function isGeminiQuotaError(error: any): boolean {
+  const errorMessage = error?.message || '';
+  return (
+    errorMessage.includes('429') ||
+    errorMessage.includes('quota exceeded') ||
+    errorMessage.includes('Quota exceeded') ||
+    error?.status === 429
+  );
+}
+
+/**
  * Generate content using Google Gemini (fallback)
  */
-async function generateWithGemini(input: GenerateLessonContentInput): Promise<LessonContentDTO> {
+async function generateWithGemini(input: GenerateLessonContentInput, retryCount: number = 0): Promise<LessonContentDTO> {
   const gemini = getGemini();
   if (!gemini) {
     throw new Error('Gemini client not available');
@@ -385,6 +457,15 @@ async function generateWithGemini(input: GenerateLessonContentInput): Promise<Le
     enhancedContent = await enhanceMediaWithVideos(enhancedContent, input.lessonTitle);
     return enhancedContent;
   } catch (error: any) {
+    // Handle quota errors with retry (but limit retries to avoid timeout)
+    if (isGeminiQuotaError(error) && retryCount < 1) { // Reduced to 1 retry to avoid timeout
+      const retryDelay = extractRetryDelay(error);
+      // Cap retry delay at 30 seconds to avoid timeout
+      const cappedDelay = Math.min(retryDelay, 30000);
+      await new Promise(resolve => setTimeout(resolve, cappedDelay));
+      return await generateWithGemini(input, retryCount + 1);
+    }
+    
     // Retry once with lower temperature if parsing fails
     if (error.message.includes('parse') || error.message.includes('JSON')) {
       

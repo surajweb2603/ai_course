@@ -1,6 +1,7 @@
 
 import OpenAI from 'openai';
 import { GoogleGenerativeAI } from '@google/generative-ai';
+import { getLanguageDetails } from '../utils/language';
 
 // Lazy initialization for AI providers
 let openaiInstance: OpenAI | null = null;
@@ -109,7 +110,16 @@ export async function generateChatResponse(
  * Build context-aware system prompt for the AI tutor
  */
 function buildSystemPrompt(context: ChatContext): string {
-  const { courseTitle, moduleTitle, lessonTitle, lessonContent, language = 'en' } = context;
+  const {
+    courseTitle,
+    moduleTitle,
+    lessonTitle,
+    lessonContent,
+    language = 'en',
+  } = context;
+  const languageDetails = getLanguageDetails(language);
+  const languageDisplay = languageDetails.display;
+  const languageCode = languageDetails.code;
   
   let prompt = `You are an expert AI tutor and teaching assistant. You help students learn by providing clear, educational, and encouraging responses.
 
@@ -117,7 +127,7 @@ function buildSystemPrompt(context: ChatContext): string {
 - Course: ${courseTitle}
 ${moduleTitle ? `- Module: ${moduleTitle}` : ''}
 ${lessonTitle ? `- Lesson: ${lessonTitle}` : ''}
-${language !== 'en' ? `- Language: ${language}` : ''}
+- Primary Language: ${languageDisplay} (code: ${languageCode})
 
 **Your Role:**
 - Be helpful, patient, and encouraging
@@ -134,7 +144,7 @@ ${lessonContent.substring(0, 1000)}${lessonContent.length > 1000 ? '...' : ''}`;
   }
 
   prompt += `\n\n**Guidelines:**
-- Answer in ${language} language
+- Answer in ${languageDisplay}
 - Be conversational and friendly
 - Provide practical examples when relevant
 - Encourage questions and deeper thinking

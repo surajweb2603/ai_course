@@ -135,7 +135,21 @@ async function createOrUpdateCourse(
   }
 }
 
-// POST /api/generate/outline - Generate course outline
+/**
+ * POST /api/generate/outline - Generate course outline
+ * 
+ * API entry point for Hindi Course Generation Workflow.
+ * 
+ * Flow:
+ * 1. Validates quotas and normalizes subtopics (max 5, <=300 chars total)
+ * 2. Forwards request to generateCourseOutline with language parameter
+ * 3. The AI service injects language into prompt so every module, lesson title, 
+ *    and summary is returned in the specified language (e.g., Hindi 'hi')
+ * 4. Parsed outline is stored in MongoDB with language metadata
+ * 
+ * The language parameter should be a valid BCP-47 code (e.g., 'hi' for Hindi).
+ */
+
 /**
  * Check free user course limit
  */
@@ -273,10 +287,15 @@ async function generateWithTimeout(
   userId: string,
   courseId?: string
 ) {
+  // Increase timeout for Hindi and other languages that use Gemini (which may have quota retries)
+  const unsupportedLanguages = ['hi', 'ar', 'zh', 'ja', 'ko', 'th'];
+  const isUnsupportedLanguage = unsupportedLanguages.includes(language?.toLowerCase() || '');
+  const timeoutDuration = isUnsupportedLanguage ? 90000 : 45000; // 90s for Hindi/Gemini, 45s for others
+  
   const timeoutPromise = new Promise<never>((_, reject) => {
     setTimeout(() => {
       reject(new Error('Request timeout'));
-    }, 15000);
+    }, timeoutDuration);
   });
 
   const generatePromise = (async () => {
@@ -302,7 +321,7 @@ function handleOutlineError(error: any): NextResponse {
     return NextResponse.json(
       {
         error:
-          'The request took too long to process. Please try again with a simpler topic.',
+          'The request took too long to process. This may happen with certain languages or when API quotas are being retried. Please try again in a moment.',
       },
       { status: 504 }
     );
@@ -323,9 +342,19 @@ function handleOutlineError(error: any): NextResponse {
 
   if (
     error.message.includes('quota exceeded') ||
-    error.message.includes('rate limit')
+    error.message.includes('rate limit') ||
+    error.message.includes('Quota exceeded') ||
+    error.message.includes('429')
   ) {
-    return NextResponse.json({ error: error.message }, { status: 429 });
+    // Extract retry delay if available
+    const retryMatch = error.message.match(/Please retry in ([\d.]+)s/i);
+    const retryDelay = retryMatch ? Math.ceil(parseFloat(retryMatch[1])) : null;
+    
+    return NextResponse.json({ 
+      error: error.message.includes('Gemini') 
+        ? `Gemini API quota exceeded. ${retryDelay ? `Please try again in ${retryDelay} seconds.` : 'Please try again later.'}`
+        : error.message 
+    }, { status: 429 });
   }
 
   if (
