@@ -2,6 +2,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { connectDBForServerless } from '../db/mongoose';
 import { getUserFromRequest, getUserFromHeader, JwtPayload } from '../auth/jwt';
+import User from '../../models/User';
 
 export interface NextAuthRequest extends NextRequest {
   user?: JwtPayload;
@@ -23,6 +24,17 @@ export async function ensureDB() {
   await connectDBForServerless();
 }
 
+// Helper to refresh user plan from database
+async function refreshUserPlan(userId: string): Promise<string> {
+  try {
+    const user = await User.findById(userId).select('plan');
+    return user?.plan || 'free';
+  } catch (error) {
+    console.error('Error refreshing user plan:', error);
+    return 'free';
+  }
+}
+
 // Helper to create authenticated request handler
 export function withAuth(
   handler: (req: NextAuthRequest, context?: any) => Promise<NextResponse>
@@ -37,6 +49,10 @@ export function withAuth(
       if (!user) {
         return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
       }
+      
+      // Refresh plan from database to ensure it's up-to-date after upgrades
+      const currentPlan = await refreshUserPlan(user.sub);
+      user.plan = currentPlan;
       
       // Attach user to request
       (req as NextAuthRequest).user = user;

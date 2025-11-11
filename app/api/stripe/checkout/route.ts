@@ -58,6 +58,37 @@ export const POST = withAuth(async (req: NextAuthRequest) => {
     );
   }
 
+  // Get base URL from request headers (works in production) or environment variables
+  const getBaseUrl = () => {
+    // Try to get from request headers first (most reliable in production)
+    const origin = req.headers.get('origin');
+    const host = req.headers.get('host');
+    
+    if (origin) {
+      return origin;
+    }
+    
+    if (host) {
+      // Construct URL from host header
+      const protocol = req.headers.get('x-forwarded-proto') || 'https';
+      return `${protocol}://${host}`;
+    }
+    
+    // Fall back to environment variables
+    if (process.env.APP_FRONTEND_URL) {
+      return process.env.APP_FRONTEND_URL;
+    }
+    
+    if (process.env.NEXT_PUBLIC_APP_URL) {
+      return process.env.NEXT_PUBLIC_APP_URL;
+    }
+    
+    // Last resort: localhost for local development
+    return 'http://localhost:3000';
+  };
+
+  const baseUrl = getBaseUrl();
+
   const session = await stripe.checkout.sessions.create({
     mode: 'subscription',
     line_items: [
@@ -66,8 +97,8 @@ export const POST = withAuth(async (req: NextAuthRequest) => {
         quantity: 1,
       },
     ],
-    success_url: `${process.env.APP_FRONTEND_URL || process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/billing/success?session_id={CHECKOUT_SESSION_ID}`,
-    cancel_url: `${process.env.APP_FRONTEND_URL || process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/pricing?payment=cancel`,
+    success_url: `${baseUrl}/billing/success?session_id={CHECKOUT_SESSION_ID}`,
+    cancel_url: `${baseUrl}/pricing?payment=cancel`,
     customer_email: req.user.email,
     metadata: {
       userId: req.user.sub,

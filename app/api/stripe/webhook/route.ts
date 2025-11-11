@@ -73,16 +73,24 @@ export const POST = publicHandler(async (req: NextRequest) => {
         const userId = session.metadata?.userId;
 
         if (userId) {
+          // Retrieve the session with expanded line_items to get the price ID
+          const expandedSession = await stripe.checkout.sessions.retrieve(
+            session.id,
+            {
+              expand: ['line_items'],
+            }
+          );
+
           // Determine the plan based on the price ID
           let plan: 'monthly' | 'yearly' = 'monthly';
 
           if (
-            session.line_items?.data?.[0]?.price?.id ===
+            expandedSession.line_items?.data?.[0]?.price?.id ===
             process.env.STRIPE_PRICE_YEARLY
           ) {
             plan = 'yearly';
           } else if (
-            session.line_items?.data?.[0]?.price?.id ===
+            expandedSession.line_items?.data?.[0]?.price?.id ===
             process.env.STRIPE_PRICE_MONTHLY
           ) {
             plan = 'monthly';
