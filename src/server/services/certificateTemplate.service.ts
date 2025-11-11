@@ -166,10 +166,17 @@ export async function renderCertificatePDF(data: CertificateData): Promise<Uint8
     }
   );
 
-  page.drawText(`Verify at: ${verifyUrl}`, {
-    x: coords.verifyX,
+  // Center the verification link at the bottom
+  const verifyText = `Verify at: ${verifyUrl}`;
+  const verifyTextSize = 10;
+  const pageWidth = page.getWidth();
+  const verifyTextWidth = regularFont.widthOfTextAtSize(verifyText, verifyTextSize);
+  const verifyX = (pageWidth - verifyTextWidth) / 2;
+
+  page.drawText(verifyText, {
+    x: verifyX,
     y: coords.verifyY,
-    size: 10,
+    size: verifyTextSize,
     font: regularFont,
     color,
   });
@@ -215,7 +222,7 @@ export async function buildCertificatePDF({
     subtitleX: parseInt(process.env.CERT_FIELD_SUBTITLE_X || '150'),
     subtitleY: parseInt(process.env.CERT_FIELD_SUBTITLE_Y || '240'),
     verifyX: parseInt(process.env.CERT_FIELD_VERIFY_X || '480'),
-    verifyY: parseInt(process.env.CERT_FIELD_VERIFY_Y || '120'),
+    verifyY: parseInt(process.env.CERT_FIELD_VERIFY_Y || '35'), // Shifted 3 cm (85 points) down from 120
     qrX: parseInt(process.env.CERT_QR_X || '180'),
     qrY: parseInt(process.env.CERT_QR_Y || '100'),
   };
