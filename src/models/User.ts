@@ -8,6 +8,8 @@ export interface IUser extends Document {
   provider: 'local' | 'google';
   googleId?: string;
   passwordHash?: string;
+  resetPasswordToken?: string;
+  resetPasswordExpiry?: Date;
   createdAt: Date;
 }
 
@@ -39,6 +41,12 @@ const userSchema = new Schema<IUser>({
   },
   passwordHash: {
     type: String,
+  },
+  resetPasswordToken: {
+    type: String,
+  },
+  resetPasswordExpiry: {
+    type: Date,
   },
   createdAt: {
     type: Date,

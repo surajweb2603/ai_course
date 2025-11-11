@@ -70,6 +70,16 @@ export const auth = {
     const response = await apiClient.get('/auth/me');
     return response.data;
   },
+
+  forgotPassword: async (data: { email: string }) => {
+    const response = await apiClient.post('/auth/forgot-password', data);
+    return response.data;
+  },
+
+  resetPassword: async (data: { token: string; password: string }) => {
+    const response = await apiClient.post('/auth/reset-password', data);
+    return response.data;
+  },
 };
 
 // Dashboard API methods
