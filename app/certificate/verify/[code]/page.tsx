@@ -410,21 +410,42 @@ function CertificateDetailsCard({
 }
 
 function CertificateActions(): JSX.Element {
+  const handlePrint = useCallback(() => {
+    try {
+      // Check if print is available
+      if (typeof window !== 'undefined' && window.print) {
+        // Small delay to ensure DOM is ready
+        setTimeout(() => {
+          window.print();
+        }, 100);
+      } else {
+        // Fallback for browsers that don't support window.print
+        alert('Print function not available. Please use your browser\'s print function (Ctrl+P or Cmd+P)');
+      }
+    } catch (error) {
+      console.error('Print failed:', error);
+      // Fallback: show alert with instructions
+      alert('Unable to open print dialog. Please use your browser\'s print function:\n\nWindows/Linux: Ctrl+P\nMac: Cmd+P');
+    }
+  }, []);
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: 0.2 }}
-      className="flex flex-col sm:flex-row gap-4 justify-center"
+      className="flex flex-col sm:flex-row gap-4 justify-center print:hidden"
     >
       <button
+        type="button"
         onClick={() => (window.location.href = '/')}
         className="px-6 py-3 bg-white text-purple-600 font-semibold rounded-xl border-2 border-purple-600 hover:bg-purple-50 transition-all duration-300"
       >
         Go to Homepage
       </button>
       <button
-        onClick={() => window.print()}
+        type="button"
+        onClick={handlePrint}
         className="px-6 py-3 bg-gradient-to-r from-purple-600 to-purple-700 text-white font-semibold rounded-xl hover:shadow-lg hover:shadow-purple-500/50 transition-all duration-300"
       >
         Print This Page
@@ -439,7 +460,7 @@ function CertificateFooterNote(): JSX.Element {
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       transition={{ delay: 0.3 }}
-      className="text-center text-sm text-gray-500 mt-8"
+      className="text-center text-sm text-gray-500 mt-8 print:hidden"
     >
       For any questions about this certificate, please contact support.
     </motion.p>
@@ -455,9 +476,36 @@ function CertificateView({
   onCopy: () => void;
   copied: boolean;
 }): JSX.Element {
+  useEffect(() => {
+    // Add print styles
+    const style = document.createElement('style');
+    style.textContent = `
+      @media print {
+        @page {
+          margin: 0.5in;
+          size: A4 landscape;
+        }
+        body {
+          background: white !important;
+        }
+        .print\\:hidden {
+          display: none !important;
+        }
+        .print\\:block {
+          display: block !important;
+        }
+      }
+    `;
+    document.head.appendChild(style);
+    
+    return () => {
+      document.head.removeChild(style);
+    };
+  }, []);
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-50 via-white to-purple-50 py-12 px-4">
-      <div className="max-w-4xl mx-auto">
+    <div className="min-h-screen bg-gradient-to-br from-purple-50 via-white to-purple-50 py-12 px-4 print:bg-white print:py-4">
+      <div className="max-w-4xl mx-auto print:max-w-full">
         <CertificateHeader />
         <CertificateDetailsCard
           certificate={data.certificate}
