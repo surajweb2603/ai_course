@@ -2,12 +2,15 @@
 
 import { motion } from 'framer-motion';
 import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { fadeUp, staggerContainer } from '@/lib/animations';
-import { getToken } from '@/lib/auth';
-import { Sparkles } from 'lucide-react';
+import { getToken, getMe } from '@/lib/auth';
+import { startCheckout } from '@/lib/payments';
+import { Sparkles, CheckCircle2 } from 'lucide-react';
 
 const CTA_PLANS = [
   {
+    id: 'free',
     name: 'Free Student',
     price: '$0',
     period: 'forever',
@@ -24,6 +27,7 @@ const CTA_PLANS = [
     highlighted: false
   },
   {
+    id: 'monthly',
     name: 'Pro Learner',
     price: '$9',
     period: 'per month',
@@ -43,6 +47,7 @@ const CTA_PLANS = [
     highlighted: true
   },
   {
+    id: 'yearly',
     name: 'Yearly Pro',
     price: '$99',
     period: 'per year',
@@ -62,12 +67,12 @@ const CTA_PLANS = [
 ];
 
 export default function PricingCTA() {
-  const { isLoggedIn } = usePricingCTAAuth();
+  const { isLoggedIn, currentPlan } = usePricingCTAAuth();
 
   return (
     <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-12 sm:py-16 lg:py-24 bg-white">
       <PricingCTAHeader />
-      <PricingPlanGrid isLoggedIn={isLoggedIn} />
+      <PricingPlanGrid isLoggedIn={isLoggedIn} currentPlan={currentPlan} />
       <PricingCTAFooter isLoggedIn={isLoggedIn} />
     </div>
   );
@@ -75,12 +80,30 @@ export default function PricingCTA() {
 
 function usePricingCTAAuth() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [currentPlan, setCurrentPlan] = useState<string | null>(null);
 
   useEffect(() => {
-    setIsLoggedIn(!!getToken());
+    const checkAuth = async () => {
+      const token = getToken();
+      setIsLoggedIn(!!token);
+      
+      if (token) {
+        try {
+          const user = await getMe();
+          if (user?.plan) {
+            setCurrentPlan(user.plan);
+          }
+        } catch (error) {
+          // User not authenticated or error fetching plan
+          console.error('Error fetching current plan:', error);
+        }
+      }
+    };
+
+    checkAuth();
   }, []);
 
-  return { isLoggedIn };
+  return { isLoggedIn, currentPlan };
 }
 
 function PricingCTAHeader() {
@@ -107,7 +130,7 @@ function PricingCTAHeader() {
   );
 }
 
-function PricingPlanGrid({ isLoggedIn }: { isLoggedIn: boolean }) {
+function PricingPlanGrid({ isLoggedIn, currentPlan }: { isLoggedIn: boolean; currentPlan?: string | null }) {
   return (
     <motion.div
       variants={staggerContainer}
@@ -116,7 +139,7 @@ function PricingPlanGrid({ isLoggedIn }: { isLoggedIn: boolean }) {
       className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-8 max-w-6xl mx-auto px-4"
     >
       {CTA_PLANS.map((plan, index) => (
-        <PricingPlanCard key={plan.name} plan={plan} index={index} isLoggedIn={isLoggedIn} />
+        <PricingPlanCard key={plan.name} plan={plan} index={index} isLoggedIn={isLoggedIn} currentPlan={currentPlan} />
       ))}
     </motion.div>
   );
@@ -126,11 +149,15 @@ function PricingPlanCard({
   plan,
   index,
   isLoggedIn,
+  currentPlan,
 }: {
   plan: (typeof CTA_PLANS)[number];
   index: number;
   isLoggedIn: boolean;
+  currentPlan?: string | null;
 }) {
+  const isCurrentPlan = currentPlan === plan.id;
+
   return (
     <motion.div
       variants={fadeUp}
@@ -138,26 +165,36 @@ function PricingPlanCard({
         y: [0, -6, 0],
         transition: { duration: 5, repeat: Infinity, ease: 'easeInOut', delay: index * 0.3 },
       }}
-      whileHover={{ y: -16, scale: plan.highlighted ? 1.08 : 1.05, transition: { duration: 0.3, ease: 'easeOut' } }}
+      whileHover={!isCurrentPlan ? { y: -16, scale: plan.highlighted ? 1.08 : 1.05, transition: { duration: 0.3, ease: 'easeOut' } } : {}}
       className={`relative bg-white border rounded-xl p-6 sm:p-8 hover:shadow-2xl transition-all duration-300 group cursor-pointer shadow-md ${
         plan.highlighted ? 'border-gray-200 lg:scale-105 shadow-xl' : 'border-gray-200 hover:border-purple-300'
-      }`}
+      } ${isCurrentPlan ? 'ring-2 ring-purple-500 ring-offset-2' : ''}`}
     >
-      <PricingPlanCardDecoration highlighted={plan.highlighted} />
+      <PricingPlanCardDecoration highlighted={plan.highlighted && !isCurrentPlan} isCurrentPlan={isCurrentPlan} />
       <PricingPlanHeader plan={plan} />
       <PricingPlanFeatures features={plan.features} />
-      <PricingPlanCTA plan={plan} isLoggedIn={isLoggedIn} />
+      <PricingPlanCTA plan={plan} isLoggedIn={isLoggedIn} currentPlan={currentPlan} />
       <PricingPlanCorners />
     </motion.div>
   );
 }
 
-function PricingPlanCardDecoration({ highlighted }: { highlighted: boolean }) {
+function PricingPlanCardDecoration({ highlighted, isCurrentPlan }: { highlighted: boolean; isCurrentPlan?: boolean }) {
   return (
     <>
       <div className="absolute inset-0 bg-gradient-to-br from-purple-50/0 via-purple-50/0 to-purple-50/0 hover:from-purple-50/40 hover:via-purple-50/30 hover:to-purple-50/40 transition-all duration-500 rounded-xl overflow-hidden" />
       <div className="absolute -inset-1 bg-gradient-to-r from-purple-400 to-purple-600 rounded-xl blur-xl opacity-0 hover:opacity-25 transition-opacity duration-500 -z-10 pointer-events-none" />
-      {highlighted && <PricingPlanBadge />}
+      {isCurrentPlan && (
+        <motion.div 
+          className="absolute -top-3 sm:-top-4 left-1/2 -translate-x-1/2 px-3 sm:px-4 py-1 bg-gradient-to-r from-green-600 to-green-700 border border-green-800 text-white text-xs font-semibold rounded-full shadow-lg z-20 flex items-center gap-1"
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+        >
+          <CheckCircle2 className="w-3 h-3" />
+          <span className="relative z-10">Current Plan</span>
+        </motion.div>
+      )}
+      {highlighted && !isCurrentPlan && <PricingPlanBadge />}
     </>
   );
 }
@@ -232,32 +269,88 @@ function PricingPlanFeatureIcon() {
 function PricingPlanCTA({
   plan,
   isLoggedIn,
+  currentPlan,
 }: {
   plan: (typeof CTA_PLANS)[number];
   isLoggedIn: boolean;
+  currentPlan?: string | null;
 }) {
+  const router = useRouter();
+  const [checkoutLoading, setCheckoutLoading] = useState(false);
+  const isCurrentPlan = currentPlan === plan.id;
+  const isDisabled = isCurrentPlan || checkoutLoading;
+
+  const handlePlanClick = async (e: React.MouseEvent) => {
+    e.preventDefault();
+
+    // Prevent selecting the same plan
+    if (isCurrentPlan) {
+      return;
+    }
+
+    if (plan.id === 'free') {
+      if (isLoggedIn) {
+        router.push('/dashboard');
+      } else {
+        router.push('/register');
+      }
+      return;
+    }
+
+    if (plan.id !== 'monthly' && plan.id !== 'yearly') {
+      return;
+    }
+
+    if (!isLoggedIn) {
+      router.push('/login');
+      return;
+    }
+
+    setCheckoutLoading(true);
+    try {
+      await startCheckout(plan.id as 'monthly' | 'yearly');
+    } catch (error: any) {
+      if (error.message === 'Not authenticated') {
+        router.push('/login');
+      } else if (error.response?.status === 400) {
+        const errorMessage = error.response?.data?.error || 'Unable to process upgrade. Please try again.';
+        alert(errorMessage);
+      } else {
+        alert('An error occurred. Please try again.');
+      }
+      setCheckoutLoading(false);
+    }
+  };
+
   return (
-    <motion.a
-      href={getPricingPlanHref(plan.cta, isLoggedIn)}
+    <motion.button
+      onClick={handlePlanClick}
+      disabled={isDisabled}
       className={`relative block w-full py-2.5 sm:py-3 text-center text-xs sm:text-sm font-semibold rounded-lg transition-all duration-300 overflow-hidden ${
-        plan.highlighted
+        isCurrentPlan
+          ? 'bg-gray-100 border border-gray-300 text-gray-500 cursor-not-allowed'
+          : plan.highlighted
           ? 'bg-gradient-to-r from-purple-600 to-purple-700 border border-purple-800 text-white hover:from-purple-700 hover:to-purple-800 hover:shadow-lg hover:shadow-purple-500/30'
           : 'border border-gray-300 text-gray-700 hover:border-purple-600 hover:bg-gradient-to-r hover:from-purple-50 hover:to-purple-100 hover:text-purple-600'
-      }`}
-      whileHover={{ scale: 1.05 }}
-      whileTap={{ scale: 0.95 }}
+      } disabled:opacity-50 disabled:cursor-not-allowed`}
+      whileHover={!isDisabled ? { scale: 1.05 } : {}}
+      whileTap={!isDisabled ? { scale: 0.95 } : {}}
     >
       <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000" />
-      <span className="relative z-10">{plan.cta}</span>
-    </motion.a>
+      <span className="relative z-10">
+        {checkoutLoading ? (
+          <div className="flex items-center justify-center gap-2">
+            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-600"></div>
+            Processing...
+          </div>
+        ) : isCurrentPlan ? (
+          'Current Plan'
+        ) : (
+          plan.cta
+        )}
+      </span>
+    </motion.button>
   );
-}
-
-function getPricingPlanHref(cta: string, isLoggedIn: boolean): string {
-  if (cta === 'Start Learning Free') {
-    return isLoggedIn ? '/dashboard' : '/register';
-  }
-  return '#get-started';
 }
 
 function PricingPlanCorners() {

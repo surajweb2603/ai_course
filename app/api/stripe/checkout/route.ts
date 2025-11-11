@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { withAuth, NextAuthRequest } from '@/src/server/http/nextAdapter';
 import Stripe from 'stripe';
+import User from '@/src/models/User';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -42,6 +43,22 @@ export const POST = withAuth(async (req: NextAuthRequest) => {
   if (!plan || !['monthly', 'yearly'].includes(plan)) {
     return NextResponse.json(
       { error: 'Invalid plan. Must be monthly or yearly.' },
+      { status: 400 }
+    );
+  }
+
+  // Check if user already has this plan
+  const user = await User.findById(req.user.sub);
+  if (!user) {
+    return NextResponse.json(
+      { error: 'User not found' },
+      { status: 404 }
+    );
+  }
+
+  if (user.plan === plan) {
+    return NextResponse.json(
+      { error: `You are already on the ${plan === 'monthly' ? 'Pro Learner' : 'Yearly Pro'} plan.` },
       { status: 400 }
     );
   }

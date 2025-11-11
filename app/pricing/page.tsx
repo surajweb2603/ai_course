@@ -3,10 +3,10 @@
 import { Suspense, useState, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { startCheckout } from '@/lib/payments';
-import { getToken } from '@/lib/auth';
+import { getToken, getMe } from '@/lib/auth';
 import { motion } from 'framer-motion';
 import { fadeUp, staggerContainer } from '@/lib/animations';
-import { Sparkles } from 'lucide-react';
+import { Sparkles, CheckCircle2 } from 'lucide-react';
 
 const plans = [
   {
@@ -133,12 +133,17 @@ function PlanFeatures({ features }: { features: string[] }) {
 function PlanCard({ 
   plan, 
   checkoutLoading, 
-  onSelect 
+  onSelect,
+  currentPlan
 }: { 
   plan: typeof plans[0]; 
   checkoutLoading: string | null;
   onSelect: (planId: string) => void;
+  currentPlan?: string | null;
 }) {
+  const isCurrentPlan = currentPlan === plan.id;
+  const isDisabled = isCurrentPlan || checkoutLoading === plan.id;
+
   return (
     <motion.div
       key={plan.id}
@@ -152,21 +157,32 @@ function PlanCard({
           delay: plans.indexOf(plan) * 0.3,
         }
       }}
-      whileHover={{ 
+      whileHover={!isCurrentPlan ? { 
         y: -16,
         scale: plan.highlighted ? 1.08 : 1.05,
         transition: { duration: 0.3, ease: "easeOut" }
-      }}
+      } : {}}
       className={`relative border rounded-xl p-6 sm:p-8 hover:shadow-2xl transition-all duration-300 group cursor-pointer shadow-md ${
         plan.highlighted 
           ? 'bg-white border-gray-200 lg:scale-105 shadow-xl' 
           : 'bg-white border-gray-200 hover:border-purple-300'
-      }`}
+      } ${isCurrentPlan ? 'ring-2 ring-purple-500 ring-offset-2' : ''}`}
     >
       <div className="absolute inset-0 bg-gradient-to-br from-purple-50/0 via-purple-50/0 to-purple-50/0 hover:from-purple-50/40 hover:via-purple-50/30 hover:to-purple-50/40 transition-all duration-500 rounded-xl overflow-hidden" />
       <div className="absolute -inset-1 bg-gradient-to-r from-purple-400 to-purple-600 rounded-xl blur-xl opacity-0 hover:opacity-25 transition-opacity duration-500 -z-10 pointer-events-none" />
       
-      {plan.highlighted && (
+      {isCurrentPlan && (
+        <motion.div 
+          className="absolute -top-3 sm:-top-4 left-1/2 -translate-x-1/2 px-3 sm:px-4 py-1 bg-gradient-to-r from-green-600 to-green-700 border border-green-800 text-white text-xs font-semibold rounded-full shadow-lg z-20 flex items-center gap-1"
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+        >
+          <CheckCircle2 className="w-3 h-3" />
+          <span className="relative z-10">Current Plan</span>
+        </motion.div>
+      )}
+      
+      {plan.highlighted && !isCurrentPlan && (
         <motion.div 
           className="absolute -top-3 sm:-top-4 left-1/2 -translate-x-1/2 px-3 sm:px-4 py-1 bg-gradient-to-r from-purple-600 to-purple-700 border border-purple-800 text-white text-xs font-semibold rounded-full shadow-lg z-20"
           animate={{ 
@@ -188,12 +204,14 @@ function PlanCard({
       <PlanFeatures features={plan.features} />
 
       <motion.button
-        onClick={() => onSelect(plan.id)}
-        disabled={checkoutLoading === plan.id}
-        whileHover={checkoutLoading !== plan.id ? { scale: 1.05 } : {}}
-        whileTap={checkoutLoading !== plan.id ? { scale: 0.95 } : {}}
+        onClick={() => !isCurrentPlan && onSelect(plan.id)}
+        disabled={isDisabled}
+        whileHover={!isDisabled ? { scale: 1.05 } : {}}
+        whileTap={!isDisabled ? { scale: 0.95 } : {}}
         className={`relative block w-full py-2.5 sm:py-3 px-4 text-center text-xs sm:text-sm font-semibold rounded-lg transition-all duration-300 overflow-hidden ${
-          plan.highlighted
+          isCurrentPlan
+            ? 'bg-gray-100 border border-gray-300 text-gray-500 cursor-not-allowed'
+            : plan.highlighted
             ? 'bg-gradient-to-r from-purple-600 to-purple-700 border border-purple-800 text-white hover:from-purple-700 hover:to-purple-800 hover:shadow-lg hover:shadow-purple-500/30'
             : 'border border-gray-300 text-gray-700 hover:border-purple-600 hover:bg-gradient-to-r hover:from-purple-50 hover:to-purple-100 hover:text-purple-600'
         } disabled:opacity-50 disabled:cursor-not-allowed`}
@@ -205,6 +223,8 @@ function PlanCard({
               <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-600"></div>
               Processing...
             </div>
+          ) : isCurrentPlan ? (
+            'Current Plan'
           ) : (
             plan.cta
           )}
@@ -291,11 +311,39 @@ function PaymentCanceledAlert() {
 
 function PricingContent() {
   const [checkoutLoading, setCheckoutLoading] = useState<string | null>(null);
+  const [currentPlan, setCurrentPlan] = useState<string | null>(null);
+  const [loadingPlan, setLoadingPlan] = useState(true);
   const router = useRouter();
   const searchParams = useSearchParams();
   const paymentCanceled = searchParams.get('payment') === 'cancel';
 
+  // Fetch current user plan
+  useEffect(() => {
+    const fetchCurrentPlan = async () => {
+      const token = getToken();
+      if (token) {
+        try {
+          const user = await getMe();
+          if (user?.plan) {
+            setCurrentPlan(user.plan);
+          }
+        } catch (error) {
+          // User not authenticated or error fetching plan
+          console.error('Error fetching current plan:', error);
+        }
+      }
+      setLoadingPlan(false);
+    };
+
+    fetchCurrentPlan();
+  }, []);
+
   const handlePlanSelect = async (planId: string) => {
+    // Prevent selecting the same plan
+    if (planId === currentPlan) {
+      return;
+    }
+
     if (planId === 'free') {
       const token = getToken();
       if (!token) {
@@ -322,6 +370,15 @@ function PricingContent() {
     } catch (error: any) {
       if (error.message === 'Not authenticated') {
         router.push('/login');
+      } else if (error.response?.status === 400) {
+        // Handle case where backend prevents same plan upgrade or other validation errors
+        const errorMessage = error.response?.data?.error || 'Unable to process upgrade. Please try again.';
+        alert(errorMessage);
+        setCheckoutLoading(null);
+      } else {
+        // Handle other errors
+        alert('An error occurred. Please try again.');
+        setCheckoutLoading(null);
       }
     } finally {
       setCheckoutLoading(null);
@@ -363,6 +420,7 @@ function PricingContent() {
                 plan={plan}
                 checkoutLoading={checkoutLoading}
                 onSelect={handlePlanSelect}
+                currentPlan={currentPlan}
               />
             ))}
           </motion.div>
