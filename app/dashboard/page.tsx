@@ -131,11 +131,19 @@ function useDashboardData(user: any) {
   return { stats, oldCourses, newCourses, loading };
 }
 
+const MAX_DISPLAY_NAME_LENGTH = 25;
+
+const formatDisplayName = (name: string, maxLength = MAX_DISPLAY_NAME_LENGTH) => {
+  if (!name) return '';
+  return name.length > maxLength ? `${name.slice(0, Math.max(0, maxLength - 3))}...` : name;
+};
+
 interface WelcomeHeaderProps {
   userName: string;
 }
 
 function WelcomeHeader({ userName }: WelcomeHeaderProps) {
+  const displayName = formatDisplayName(userName);
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
@@ -161,8 +169,11 @@ function WelcomeHeader({ userName }: WelcomeHeaderProps) {
       </motion.div>
       <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-bold text-gray-900 leading-[1.1] sm:leading-tight tracking-tight mb-3 sm:mb-4">
         Welcome back,{' '}
-        <span className="relative inline-block italic font-light bg-gradient-to-r from-purple-600 via-purple-500 to-blue-600 bg-clip-text text-transparent px-2 -mx-1">
-          {userName}
+        <span
+          className="relative inline-block italic font-light bg-gradient-to-r from-purple-600 via-purple-500 to-blue-600 bg-clip-text text-transparent px-2 -mx-1"
+          title={userName}
+        >
+          {displayName}
         </span>
       </h1>
       <p className="text-gray-600 text-base sm:text-lg md:text-xl max-w-2xl mx-auto lg:mx-0 leading-relaxed font-medium">
@@ -522,6 +533,7 @@ interface ProfileCardProps {
 }
 
 function ProfileCard({ user, totalCourses }: ProfileCardProps) {
+  const displayName = formatDisplayName(user.name);
   return (
     <div className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
       <div className="flex items-center gap-4 mb-6">
@@ -529,7 +541,9 @@ function ProfileCard({ user, totalCourses }: ProfileCardProps) {
           {user.name.charAt(0).toUpperCase()}
         </div>
         <div>
-          <h3 className="text-xl font-bold text-gray-900">{user.name}</h3>
+          <h3 className="text-xl font-bold text-gray-900" title={user.name}>
+            {displayName}
+          </h3>
           <p className="text-gray-600 text-sm">{user.email}</p>
         </div>
       </div>

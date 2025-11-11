@@ -48,7 +48,7 @@ function HeroHeading() {
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: 0.2 }}
-      className="text-4xl sm:text-5xl md:text-6xl lg:text-[2.75rem] xl:text-8xl font-bold text-gray-900 leading-[1.1] sm:leading-[0.95] tracking-tight overflow-visible"
+      className="text-4xl sm:text-5xl md:text-6xl lg:text-[2.75rem] xl:text-8xl font-bold text-gray-900 leading-[1.25] tracking-tight overflow-visible"
     >
       Master Any{' '}
       <span className="relative inline-block italic font-light bg-gradient-to-r from-purple-600 via-purple-500 to-blue-600 bg-clip-text text-transparent overflow-visible px-2 -mx-1">
@@ -249,4 +249,3 @@ export default function Hero() {
     </section>
   );
 }
-
