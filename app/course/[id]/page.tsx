@@ -202,20 +202,20 @@ function ModuleCard({
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: 0.1 * module.order }}
-      className="bg-white border border-gray-200 rounded-2xl p-6 hover:border-purple-300 hover:shadow-lg transition-all duration-300 group relative overflow-hidden shadow-sm"
+      className="bg-white border border-gray-200 rounded-2xl p-4 sm:p-6 hover:border-purple-300 hover:shadow-lg transition-all duration-300 group relative overflow-hidden shadow-sm"
     >
-      <div className="flex items-start gap-4 mb-4">
-        <div className="w-12 h-12 bg-gradient-to-br from-purple-600 to-purple-700 rounded-xl flex items-center justify-center flex-shrink-0 group-hover:scale-110 transition-transform duration-300 shadow-lg">
-          <span className="text-white font-bold text-lg">{module.order}</span>
+      <div className="flex items-start gap-3 sm:gap-4 mb-4">
+        <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-br from-purple-600 to-purple-700 rounded-xl flex items-center justify-center flex-shrink-0 group-hover:scale-110 transition-transform duration-300 shadow-lg">
+          <span className="text-white font-bold text-base sm:text-lg">{module.order}</span>
         </div>
         <div className="flex-1 min-w-0">
           <h3
-            className="text-xl font-bold text-gray-900 mb-2 group-hover:text-purple-600 transition-colors line-clamp-2"
+            className="text-lg sm:text-xl font-bold text-gray-900 mb-2 group-hover:text-purple-600 transition-colors line-clamp-2 break-words"
             title={module.title}
           >
             {module.title}
           </h3>
-          <div className="flex items-center gap-2 text-sm text-gray-600">
+          <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 text-xs sm:text-sm text-gray-600">
             <span>
               {module.lessons.length} lesson{module.lessons.length !== 1 ? 's' : ''}
             </span>
@@ -254,7 +254,7 @@ function ModuleCard({
               router.push(`/course/${courseId}/lesson/${firstLesson._id}`);
             }
           }}
-          className="flex-1 px-4 py-2 bg-purple-100 text-purple-600 font-semibold rounded-lg hover:bg-purple-600 hover:text-white hover:shadow-lg hover:shadow-purple-500/30 transition-all flex items-center justify-center gap-2"
+          className="flex-1 px-3 sm:px-4 py-2 text-sm sm:text-base bg-purple-100 text-purple-600 font-semibold rounded-lg hover:bg-purple-600 hover:text-white hover:shadow-lg hover:shadow-purple-500/30 transition-all flex items-center justify-center gap-2"
         >
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path
@@ -314,16 +314,119 @@ interface CourseHeaderInfoProps {
   userPlan?: string;
 }
 
+function CertificateSection({ courseId, userPlan }: { courseId: string; userPlan?: string }) {
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="mt-4"
+    >
+      {userPlan !== 'free' ? (
+        <button
+          onClick={async () => {
+            try {
+              const blob = await certificate.download(courseId);
+              const url = window.URL.createObjectURL(blob);
+              const a = document.createElement('a');
+              a.href = url;
+              a.download = `certificate-${courseId}.pdf`;
+              document.body.appendChild(a);
+              a.click();
+              window.URL.revokeObjectURL(url);
+              document.body.removeChild(a);
+            } catch (error: any) {
+              const errorMessage = error.message || 'Failed to download certificate';
+              alert(errorMessage);
+            }
+          }}
+          className="w-full sm:w-auto flex items-center justify-center gap-2 px-4 py-2 bg-gradient-to-r from-green-500 to-emerald-500 text-white font-semibold rounded-lg hover:shadow-lg hover:shadow-green-500/50 transition-all duration-300"
+        >
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+            />
+          </svg>
+          Download Certificate
+          <span className="hidden sm:inline text-xs bg-white/20 px-2 py-0.5 rounded-full">
+            Includes QR and verification link
+          </span>
+        </button>
+      ) : (
+        <div className="relative overflow-hidden flex flex-col sm:flex-row items-start sm:items-center gap-3 px-4 sm:px-5 py-4 bg-gradient-to-r from-purple-50 via-indigo-50 to-purple-50 border-2 border-purple-200/60 rounded-xl shadow-sm hover:shadow-md transition-all duration-300">
+          {/* Decorative background pattern */}
+          <div className="absolute inset-0 opacity-5">
+            <div className="absolute top-0 left-0 w-32 h-32 bg-purple-500 rounded-full blur-3xl"></div>
+            <div className="absolute bottom-0 right-0 w-24 h-24 bg-indigo-500 rounded-full blur-2xl"></div>
+          </div>
+          
+          {/* Lock icon with premium styling */}
+          <div className="relative flex-shrink-0">
+            <motion.div 
+              className="p-2 bg-gradient-to-br from-purple-500 to-indigo-600 rounded-lg shadow-lg"
+              animate={{ 
+                scale: [1, 1.05, 1],
+              }}
+              transition={{ 
+                duration: 2, 
+                repeat: Infinity, 
+                ease: "easeInOut" 
+              }}
+            >
+              <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2.5}
+                  d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"
+                />
+              </svg>
+            </motion.div>
+          </div>
+          
+          {/* Text content */}
+          <div className="flex-1 relative z-10 min-w-0">
+            <p className="text-sm font-semibold text-gray-800">
+              Certificate download available for paid plans
+            </p>
+            <p className="text-xs text-gray-600 mt-0.5">
+              Unlock premium features and get your completion certificate
+            </p>
+          </div>
+          
+          {/* Upgrade button */}
+          <a
+            href="/pricing"
+            className="relative z-10 w-full sm:w-auto flex items-center justify-center gap-2 px-4 py-2 bg-gradient-to-r from-purple-600 to-indigo-600 text-white text-sm font-bold rounded-lg hover:from-purple-700 hover:to-indigo-700 transition-all duration-300 shadow-lg hover:shadow-xl hover:scale-105 active:scale-95"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2.5}
+                d="M13 7l5 5m0 0l-5 5m5-5H6"
+              />
+            </svg>
+            Upgrade Now
+          </a>
+        </div>
+      )}
+    </motion.div>
+  );
+}
+
 function CourseHeaderInfo({ course, courseProgress, courseId, userPlan }: CourseHeaderInfoProps) {
   return (
-    <div className="flex-1">
-      <h1 className="text-3xl font-bold mb-2 text-gray-900">{course.title}</h1>
-      {course.summary && <p className="mb-3 text-gray-600">{course.summary}</p>}
-      <div className="flex items-center gap-3 mb-4">
+    <div className="flex-1 min-w-0">
+      <h1 className="text-2xl sm:text-3xl font-bold mb-2 text-gray-900 break-words">{course.title}</h1>
+      {course.summary && <p className="mb-3 text-gray-600 text-sm sm:text-base break-words">{course.summary}</p>}
+      <div className="flex flex-wrap items-center gap-2 sm:gap-3 mb-4">
         <span className="px-3 py-1 text-xs font-medium rounded-full bg-purple-100 text-purple-600">
           {course.language.toUpperCase()}
         </span>
-        <span className="text-sm text-gray-600">
+        <span className="text-xs sm:text-sm text-gray-600">
           {course.modules.length} modules ·{' '}
           {course.modules.reduce((acc, m) => acc + m.lessons.length, 0)} lessons
         </span>
@@ -344,106 +447,7 @@ function CourseHeaderInfo({ course, courseProgress, courseId, userPlan }: Course
         </div>
       </div>
 
-      {courseProgress.percent === 100 && (
-        <motion.div
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="mt-4"
-        >
-          {userPlan !== 'free' ? (
-            <button
-              onClick={async () => {
-                try {
-                  const blob = await certificate.download(courseId);
-                  const url = window.URL.createObjectURL(blob);
-                  const a = document.createElement('a');
-                  a.href = url;
-                  a.download = `certificate-${courseId}.pdf`;
-                  document.body.appendChild(a);
-                  a.click();
-                  window.URL.revokeObjectURL(url);
-                  document.body.removeChild(a);
-                } catch (error: any) {
-                  const errorMessage = error.message || 'Failed to download certificate';
-                  alert(errorMessage);
-                }
-              }}
-              className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-green-500 to-emerald-500 text-white font-semibold rounded-lg hover:shadow-lg hover:shadow-green-500/50 transition-all duration-300"
-            >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-                />
-              </svg>
-              Download Certificate
-              <span className="text-xs bg-white/20 px-2 py-0.5 rounded-full">
-                Includes QR and verification link
-              </span>
-            </button>
-          ) : (
-            <div className="relative overflow-hidden flex items-center gap-3 px-5 py-4 bg-gradient-to-r from-purple-50 via-indigo-50 to-purple-50 border-2 border-purple-200/60 rounded-xl shadow-sm hover:shadow-md transition-all duration-300">
-              {/* Decorative background pattern */}
-              <div className="absolute inset-0 opacity-5">
-                <div className="absolute top-0 left-0 w-32 h-32 bg-purple-500 rounded-full blur-3xl"></div>
-                <div className="absolute bottom-0 right-0 w-24 h-24 bg-indigo-500 rounded-full blur-2xl"></div>
-              </div>
-              
-              {/* Lock icon with premium styling */}
-              <div className="relative flex-shrink-0">
-                <motion.div 
-                  className="p-2 bg-gradient-to-br from-purple-500 to-indigo-600 rounded-lg shadow-lg"
-                  animate={{ 
-                    scale: [1, 1.05, 1],
-                  }}
-                  transition={{ 
-                    duration: 2, 
-                    repeat: Infinity, 
-                    ease: "easeInOut" 
-                  }}
-                >
-                  <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2.5}
-                      d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"
-                    />
-                  </svg>
-                </motion.div>
-              </div>
-              
-              {/* Text content */}
-              <div className="flex-1 relative z-10">
-                <p className="text-sm font-semibold text-gray-800">
-                  Certificate download available for paid plans
-                </p>
-                <p className="text-xs text-gray-600 mt-0.5">
-                  Unlock premium features and get your completion certificate
-                </p>
-              </div>
-              
-              {/* Upgrade button */}
-              <a
-                href="/pricing"
-                className="relative z-10 flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-purple-600 to-indigo-600 text-white text-sm font-bold rounded-lg hover:from-purple-700 hover:to-indigo-700 transition-all duration-300 shadow-lg hover:shadow-xl hover:scale-105 active:scale-95"
-              >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2.5}
-                    d="M13 7l5 5m0 0l-5 5m5-5H6"
-                  />
-                </svg>
-                Upgrade Now
-              </a>
-            </div>
-          )}
-        </motion.div>
-      )}
+      {courseProgress.percent === 100 && <CertificateSection courseId={courseId} userPlan={userPlan} />}
     </div>
   );
 }
@@ -470,10 +474,10 @@ function CourseHeaderActions({
   userPlan,
 }: CourseHeaderActionsProps) {
   return (
-    <div className="flex flex-col gap-3">
+    <div className="flex flex-col gap-3 w-full md:w-auto">
       <button
         onClick={onShare}
-        className="px-4 py-2 bg-white border-2 border-purple-600 text-purple-600 font-bold rounded-lg hover:shadow-lg hover:shadow-purple-500/50 hover:bg-purple-50 transition-all flex items-center gap-2"
+        className="w-full md:w-auto px-4 py-2 bg-white border-2 border-purple-600 text-purple-600 font-bold rounded-lg hover:shadow-lg hover:shadow-purple-500/50 hover:bg-purple-50 transition-all flex items-center justify-center gap-2"
       >
         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path
@@ -489,7 +493,7 @@ function CourseHeaderActions({
       <button
         onClick={onExport}
         disabled={isExporting || !course?.modules?.length}
-        className="px-4 py-2 bg-white border-2 border-purple-600 text-purple-600 font-bold rounded-lg hover:shadow-lg hover:shadow-purple-500/50 hover:bg-purple-50 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+        className="w-full md:w-auto px-4 py-2 bg-white border-2 border-purple-600 text-purple-600 font-bold rounded-lg hover:shadow-lg hover:shadow-purple-500/50 hover:bg-purple-50 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
       >
         {isExporting ? (
           <>
@@ -515,7 +519,7 @@ function CourseHeaderActions({
         <button
           onClick={onGenerateFullCourse}
           disabled={isRegenerating}
-          className="px-4 py-2 bg-gradient-to-r from-purple-600 to-purple-700 text-white font-bold rounded-lg hover:from-purple-700 hover:to-purple-800 hover:shadow-lg hover:shadow-purple-500/50 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+          className="w-full md:w-auto px-4 py-2 bg-gradient-to-r from-purple-600 to-purple-700 text-white font-bold rounded-lg hover:from-purple-700 hover:to-purple-800 hover:shadow-lg hover:shadow-purple-500/50 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
         >
           {isRegenerating ? (
             <>
@@ -570,9 +574,9 @@ function CourseHeader({
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      className="bg-white border border-gray-200 rounded-2xl p-6 mb-6 shadow-sm"
+      className="bg-white border border-gray-200 rounded-2xl p-4 sm:p-6 mb-6 shadow-sm"
     >
-      <div className="flex items-start justify-between gap-6">
+      <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4 md:gap-6">
         <CourseHeaderInfo course={course} courseProgress={courseProgress} courseId={courseId} userPlan={userPlan} />
         <CourseHeaderActions
           course={course}
@@ -1122,13 +1126,13 @@ interface AITutorButtonProps {
 
 function AITutorButton({ onOpen }: AITutorButtonProps) {
   return (
-    <div className="fixed bottom-6 right-6 z-40 group">
+    <div className="fixed bottom-4 right-4 sm:bottom-6 sm:right-6 z-40 group">
       <motion.div
         initial={{ opacity: 0, x: 20, scale: 0.8 }}
         animate={{ opacity: 0, x: 20, scale: 0.8 }}
         whileHover={{ opacity: 1, x: 0, scale: 1 }}
         transition={{ duration: 0.2 }}
-        className="absolute right-20 top-1/2 transform -translate-y-1/2 bg-white border border-gray-200 text-gray-900 px-4 py-3 rounded-xl shadow-lg whitespace-nowrap pointer-events-none"
+        className="hidden md:block absolute right-20 top-1/2 transform -translate-y-1/2 bg-white border border-gray-200 text-gray-900 px-4 py-3 rounded-xl shadow-lg whitespace-nowrap pointer-events-none"
       >
         <div className="text-sm font-bold mb-1 flex items-center gap-2 text-gray-900">
           <Bot className="w-4 h-4 text-purple-600" /> AI Tutor
@@ -1160,7 +1164,7 @@ function AITutorButton({ onOpen }: AITutorButtonProps) {
           boxShadow: { duration: 2, repeat: Infinity, ease: 'easeInOut' },
         }}
         onClick={onOpen}
-        className="w-16 h-16 bg-gradient-to-r from-purple-600 to-purple-700 text-white rounded-full shadow-lg hover:shadow-xl hover:shadow-purple-500/40 transition-all duration-300 flex items-center justify-center relative overflow-hidden"
+        className="w-14 h-14 sm:w-16 sm:h-16 bg-gradient-to-r from-purple-600 to-purple-700 text-white rounded-full shadow-lg hover:shadow-xl hover:shadow-purple-500/40 transition-all duration-300 flex items-center justify-center relative overflow-hidden"
       >
         <motion.div
           animate={{
@@ -1190,7 +1194,7 @@ function AITutorButton({ onOpen }: AITutorButtonProps) {
             rotate: [0, -10, 10, 0],
           }}
         >
-          <Bot className="w-8 h-8" />
+          <Bot className="w-7 h-7 sm:w-8 sm:h-8" />
         </motion.div>
       </motion.button>
     </div>
@@ -1740,14 +1744,14 @@ function CoursePageContent({
   userPlan?: string;
 }) {
   return (
-    <div className="relative z-10 container mx-auto px-6 lg:px-8 py-12">
+    <div className="relative z-10 container mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-12">
       <motion.button
         initial={{ opacity: 0, x: -20 }}
         animate={{ opacity: 1, x: 0 }}
         onClick={() => router.push('/dashboard')}
-        className="flex items-center gap-2 text-gray-600 hover:text-purple-600 transition-colors mb-8"
+        className="flex items-center gap-2 text-sm sm:text-base text-gray-600 hover:text-purple-600 transition-colors mb-6 sm:mb-8"
       >
-        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path
             strokeLinecap="round"
             strokeLinejoin="round"
