@@ -456,6 +456,7 @@ interface CourseHeaderActionsProps {
   onGenerateFullCourse: () => void;
   isRegenerating: boolean;
   isFullCourseGenerated: boolean;
+  userPlan?: string;
 }
 
 function CourseHeaderActions({
@@ -466,6 +467,7 @@ function CourseHeaderActions({
   onGenerateFullCourse,
   isRegenerating,
   isFullCourseGenerated,
+  userPlan,
 }: CourseHeaderActionsProps) {
   return (
     <div className="flex flex-col gap-3">
@@ -509,7 +511,7 @@ function CourseHeaderActions({
         )}
       </button>
 
-      {!isFullCourseGenerated && (
+      {!isFullCourseGenerated && userPlan !== 'free' && (
         <button
           onClick={onGenerateFullCourse}
           disabled={isRegenerating}
@@ -580,6 +582,7 @@ function CourseHeader({
           onGenerateFullCourse={onGenerateFullCourse}
           isRegenerating={isRegenerating}
           isFullCourseGenerated={isFullCourseGenerated}
+          userPlan={userPlan}
         />
       </div>
     </motion.div>
