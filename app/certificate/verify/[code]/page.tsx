@@ -410,24 +410,98 @@ function CertificateDetailsCard({
 }
 
 function CertificateActions(): JSX.Element {
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    // Detect mobile device
+    const checkMobile = () => {
+      if (typeof window !== 'undefined') {
+        const isMobileDevice = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
+          navigator.userAgent
+        ) || window.innerWidth < 768;
+        setIsMobile(isMobileDevice);
+      }
+    };
+    
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
+
+  const showPrintInstructions = useCallback(() => {
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+    const isAndroid = /Android/.test(navigator.userAgent);
+    
+    let message = 'To print this certificate:\n\n';
+    
+    if (isIOS) {
+      message += '1. Tap the Share button (square with arrow)\n';
+      message += '2. Scroll and tap "Print"\n';
+      message += '3. Select your printer or "Save as PDF"\n\n';
+      message += 'Or use Safari menu: Share → Print';
+    } else if (isAndroid) {
+      message += '1. Tap the menu (3 dots)\n';
+      message += '2. Tap "Print" or "Share"\n';
+      message += '3. Select "Save as PDF" or choose printer\n\n';
+      message += 'Or use Chrome menu: ⋮ → Print';
+    } else {
+      message += 'Windows/Linux: Press Ctrl+P\n';
+      message += 'Mac: Press Cmd+P';
+    }
+    
+    alert(message);
+  }, []);
+
+  const attemptPrint = useCallback(() => {
+    if (typeof window !== 'undefined' && window.print) {
+      // Small delay to ensure DOM is ready
+      setTimeout(() => {
+        try {
+          window.print();
+        } catch (err) {
+          console.error('Print error:', err);
+          showPrintInstructions();
+        }
+      }, 100);
+    } else {
+      showPrintInstructions();
+    }
+  }, [showPrintInstructions]);
+
   const handlePrint = useCallback(() => {
     try {
-      // Check if print is available
-      if (typeof window !== 'undefined' && window.print) {
-        // Small delay to ensure DOM is ready
-        setTimeout(() => {
-          window.print();
-        }, 100);
+      if (typeof window === 'undefined') return;
+
+      // For mobile devices, try multiple approaches
+      if (isMobile) {
+        // Try Web Share API first (iOS Safari, Chrome Android)
+        if (navigator.share && navigator.canShare) {
+          const shareData = {
+            title: 'Certificate of Completion',
+            text: 'View and print my certificate',
+            url: window.location.href,
+          };
+          
+          if (navigator.canShare(shareData)) {
+            navigator.share(shareData).catch(() => {
+              // If share fails, fall through to print
+              attemptPrint();
+            });
+            return;
+          }
+        }
+
+        // For mobile browsers, try window.print() (works on some mobile browsers)
+        attemptPrint();
       } else {
-        // Fallback for browsers that don't support window.print
-        alert('Print function not available. Please use your browser\'s print function (Ctrl+P or Cmd+P)');
+        // Desktop: standard print
+        attemptPrint();
       }
     } catch (error) {
       console.error('Print failed:', error);
-      // Fallback: show alert with instructions
-      alert('Unable to open print dialog. Please use your browser\'s print function:\n\nWindows/Linux: Ctrl+P\nMac: Cmd+P');
+      showPrintInstructions();
     }
-  }, []);
+  }, [isMobile, attemptPrint, showPrintInstructions]);
 
   return (
     <motion.div
