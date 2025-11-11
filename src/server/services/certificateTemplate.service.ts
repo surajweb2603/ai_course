@@ -93,7 +93,8 @@ export function formatIssuedDate(date: Date): string {
 /** Render the certificate */
 export async function renderCertificatePDF(data: CertificateData): Promise<Uint8Array> {
   const { name, courseTitle, issuedAt, verifyUrl, coords, fontPath } = data;
-  const pdfDoc = await PDFDocument.load(await loadTemplate());
+  const templateBuffer = await loadTemplate();
+  const pdfDoc = await PDFDocument.load(new Uint8Array(templateBuffer));
   const page = pdfDoc.getPages()[0];
 
   // Fonts
@@ -101,7 +102,7 @@ export async function renderCertificatePDF(data: CertificateData): Promise<Uint8
   if (fontPath) {
     try {
       const fontBytes = await readFile(fontPath);
-      regularFont = await pdfDoc.embedFont(fontBytes);
+      regularFont = await pdfDoc.embedFont(new Uint8Array(fontBytes));
       boldFont = regularFont;
     } catch {
       regularFont = await pdfDoc.embedFont(StandardFonts.Helvetica);
@@ -150,6 +151,7 @@ export async function renderCertificatePDF(data: CertificateData): Promise<Uint8
     size: courseFont,
     font: boldFont,
     color,
+    maxWidth: 380,
   });
 
   page.drawText(
@@ -176,7 +178,7 @@ export async function renderCertificatePDF(data: CertificateData): Promise<Uint8
   try {
     const qrData = await QRCode.toDataURL(verifyUrl, { margin: 0, scale: 6 });
     const qrBuffer = Buffer.from(qrData.split(',')[1], 'base64');
-    const qrImage = await pdfDoc.embedPng(qrBuffer);
+    const qrImage = await pdfDoc.embedPng(new Uint8Array(qrBuffer));
     page.drawImage(qrImage, {
       x: coords.qrX,
       y: coords.qrY,
@@ -211,7 +213,7 @@ export async function buildCertificatePDF({
     courseX: parseInt(process.env.CERT_FIELD_COURSE_X || '150'),
     courseY: parseInt(process.env.CERT_FIELD_COURSE_Y || '290'),
     subtitleX: parseInt(process.env.CERT_FIELD_SUBTITLE_X || '150'),
-    subtitleY: parseInt(process.env.CERT_FIELD_SUBTITLE_Y || '260'),
+    subtitleY: parseInt(process.env.CERT_FIELD_SUBTITLE_Y || '240'),
     verifyX: parseInt(process.env.CERT_FIELD_VERIFY_X || '480'),
     verifyY: parseInt(process.env.CERT_FIELD_VERIFY_Y || '120'),
     qrX: parseInt(process.env.CERT_QR_X || '180'),

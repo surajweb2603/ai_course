@@ -26,6 +26,7 @@ interface QuizState {
   showResult: boolean;
   score: number;
   answeredQuestions: boolean[];
+  showCompletion: boolean;
 }
 
 function getInitialState(
@@ -39,6 +40,7 @@ function getInitialState(
       showResult: false,
       score: 0,
       answeredQuestions: new Array(questionsLength).fill(false),
+      showCompletion: false,
     };
   }
 
@@ -56,6 +58,7 @@ function getInitialState(
           showResult: false,
           score: 0,
           answeredQuestions: new Array(questionsLength).fill(false),
+          showCompletion: false,
         };
       }
       return {
@@ -64,6 +67,7 @@ function getInitialState(
         showResult: parsed.showResult || false,
         score: parsed.score || 0,
         answeredQuestions,
+        showCompletion: parsed.showCompletion || false,
       };
     }
   } catch (error) {
@@ -76,6 +80,7 @@ function getInitialState(
     showResult: false,
     score: 0,
     answeredQuestions: new Array(questionsLength).fill(false),
+    showCompletion: false,
   };
 }
 
@@ -132,6 +137,7 @@ function useQuizResponses(
                 ...prev,
                 answeredQuestions: answered,
                 score: totalScore,
+                showCompletion: false,
               }));
 
               if (quizStateKey) {
@@ -143,6 +149,7 @@ function useQuizResponses(
                     showResult: false,
                     score: totalScore,
                     answeredQuestions: answered,
+                    showCompletion: false,
                   })
                 );
               }
@@ -377,6 +384,7 @@ interface QuizQuestionCardProps {
   onNext: () => void;
   onPrevious: () => void;
   onReset: () => void;
+  onViewCompletion: () => void;
 }
 
 function QuizQuestionCard({
@@ -390,6 +398,7 @@ function QuizQuestionCard({
   onNext,
   onPrevious,
   onReset,
+  onViewCompletion,
 }: QuizQuestionCardProps) {
   const isCorrect = selectedAnswer === question.answerIndex;
 
@@ -455,12 +464,20 @@ function QuizQuestionCard({
                 Next Question →
               </button>
             ) : (
-              <button
-                onClick={onReset}
-                className="px-6 py-2 bg-gray-100 border border-gray-300 text-gray-700 font-semibold rounded-lg hover:bg-gray-200 transition-all"
-              >
-                Restart Quiz
-              </button>
+              <>
+                <button
+                  onClick={onViewCompletion}
+                  className="px-6 py-2 bg-gradient-to-r from-purple-600 to-purple-700 text-white font-semibold rounded-lg hover:shadow-lg hover:shadow-purple-500/50 transition-all"
+                >
+                  View Results →
+                </button>
+                <button
+                  onClick={onReset}
+                  className="px-6 py-2 bg-gray-100 border border-gray-300 text-gray-700 font-semibold rounded-lg hover:bg-gray-200 transition-all"
+                >
+                  Restart Quiz
+                </button>
+              </>
             )}
           </div>
         </div>
@@ -595,6 +612,7 @@ function useQuizHandlers(
       showResult: false,
       score: 0,
       answeredQuestions: new Array(questions.length).fill(false),
+      showCompletion: false,
     });
 
     if (quizStateKey) {
@@ -602,7 +620,11 @@ function useQuizHandlers(
     }
   };
 
-  return { handleSubmit, handleNext, handlePrevious, handleReset };
+  const handleViewCompletion = () => {
+    setState((prev) => ({ ...prev, showCompletion: true }));
+  };
+
+  return { handleSubmit, handleNext, handlePrevious, handleReset, handleViewCompletion };
 }
 
 export default function QuizBlock({
@@ -625,7 +647,7 @@ export default function QuizBlock({
     setState
   );
 
-  const { handleSubmit, handleNext, handlePrevious, handleReset } =
+  const { handleSubmit, handleNext, handlePrevious, handleReset, handleViewCompletion } =
     useQuizHandlers(
       state,
       setState,
@@ -649,6 +671,11 @@ export default function QuizBlock({
   const isQuizCompleted = state.answeredQuestions.every((a) => a);
   const currentQuestion = questions[state.currentQuestionIndex];
   const isLastQuestion = state.currentQuestionIndex === questions.length - 1;
+  
+  // Show completion screen only if quiz is completed AND user has explicitly chosen to view it
+  const shouldShowCompletion = isQuizCompleted && state.showCompletion;
+  // Show question card if quiz is not completed, OR if we're showing the last question's result
+  const shouldShowQuestionCard = !isQuizCompleted || (isLastQuestion && state.showResult && !state.showCompletion);
 
   return (
     <div className="space-y-6">
@@ -657,11 +684,11 @@ export default function QuizBlock({
         totalQuestions={questions.length}
         answeredQuestions={state.answeredQuestions}
         score={state.score}
-        isQuizCompleted={isQuizCompleted}
+        isQuizCompleted={isQuizCompleted && state.showCompletion}
         onReset={handleReset}
       />
 
-      {!isQuizCompleted && (
+      {shouldShowQuestionCard && (
         <QuizQuestionCard
           question={currentQuestion}
           selectedAnswer={state.selectedAnswer}
@@ -675,10 +702,11 @@ export default function QuizBlock({
           onNext={handleNext}
           onPrevious={handlePrevious}
           onReset={handleReset}
+          onViewCompletion={handleViewCompletion}
         />
       )}
 
-      {isQuizCompleted && (
+      {shouldShowCompletion && (
         <QuizCompletion
           score={state.score}
           totalQuestions={questions.length}
