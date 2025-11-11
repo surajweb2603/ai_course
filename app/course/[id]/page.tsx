@@ -311,9 +311,10 @@ interface CourseHeaderInfoProps {
   course: Course;
   courseProgress: { percent: number };
   courseId: string;
+  userPlan?: string;
 }
 
-function CourseHeaderInfo({ course, courseProgress, courseId }: CourseHeaderInfoProps) {
+function CourseHeaderInfo({ course, courseProgress, courseId, userPlan }: CourseHeaderInfoProps) {
   return (
     <div className="flex-1">
       <h1 className="text-3xl font-bold mb-2 text-gray-900">{course.title}</h1>
@@ -349,37 +350,98 @@ function CourseHeaderInfo({ course, courseProgress, courseId }: CourseHeaderInfo
           animate={{ opacity: 1, y: 0 }}
           className="mt-4"
         >
-          <button
-            onClick={async () => {
-              try {
-                const blob = await certificate.download(courseId);
-                const url = window.URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = `certificate-${courseId}.pdf`;
-                document.body.appendChild(a);
-                a.click();
-                window.URL.revokeObjectURL(url);
-                document.body.removeChild(a);
-              } catch (error) {
-                // Ignore cleanup errors
-              }
-            }}
-            className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-green-500 to-emerald-500 text-white font-semibold rounded-lg hover:shadow-lg hover:shadow-green-500/50 transition-all duration-300"
-          >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-              />
-            </svg>
-            Download Certificate
-            <span className="text-xs bg-white/20 px-2 py-0.5 rounded-full">
-              Includes QR and verification link
-            </span>
-          </button>
+          {userPlan !== 'free' ? (
+            <button
+              onClick={async () => {
+                try {
+                  const blob = await certificate.download(courseId);
+                  const url = window.URL.createObjectURL(blob);
+                  const a = document.createElement('a');
+                  a.href = url;
+                  a.download = `certificate-${courseId}.pdf`;
+                  document.body.appendChild(a);
+                  a.click();
+                  window.URL.revokeObjectURL(url);
+                  document.body.removeChild(a);
+                } catch (error: any) {
+                  const errorMessage = error.message || 'Failed to download certificate';
+                  alert(errorMessage);
+                }
+              }}
+              className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-green-500 to-emerald-500 text-white font-semibold rounded-lg hover:shadow-lg hover:shadow-green-500/50 transition-all duration-300"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                />
+              </svg>
+              Download Certificate
+              <span className="text-xs bg-white/20 px-2 py-0.5 rounded-full">
+                Includes QR and verification link
+              </span>
+            </button>
+          ) : (
+            <div className="relative overflow-hidden flex items-center gap-3 px-5 py-4 bg-gradient-to-r from-purple-50 via-indigo-50 to-purple-50 border-2 border-purple-200/60 rounded-xl shadow-sm hover:shadow-md transition-all duration-300">
+              {/* Decorative background pattern */}
+              <div className="absolute inset-0 opacity-5">
+                <div className="absolute top-0 left-0 w-32 h-32 bg-purple-500 rounded-full blur-3xl"></div>
+                <div className="absolute bottom-0 right-0 w-24 h-24 bg-indigo-500 rounded-full blur-2xl"></div>
+              </div>
+              
+              {/* Lock icon with premium styling */}
+              <div className="relative flex-shrink-0">
+                <motion.div 
+                  className="p-2 bg-gradient-to-br from-purple-500 to-indigo-600 rounded-lg shadow-lg"
+                  animate={{ 
+                    scale: [1, 1.05, 1],
+                  }}
+                  transition={{ 
+                    duration: 2, 
+                    repeat: Infinity, 
+                    ease: "easeInOut" 
+                  }}
+                >
+                  <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2.5}
+                      d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"
+                    />
+                  </svg>
+                </motion.div>
+              </div>
+              
+              {/* Text content */}
+              <div className="flex-1 relative z-10">
+                <p className="text-sm font-semibold text-gray-800">
+                  Certificate download available for paid plans
+                </p>
+                <p className="text-xs text-gray-600 mt-0.5">
+                  Unlock premium features and get your completion certificate
+                </p>
+              </div>
+              
+              {/* Upgrade button */}
+              <a
+                href="/pricing"
+                className="relative z-10 flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-purple-600 to-indigo-600 text-white text-sm font-bold rounded-lg hover:from-purple-700 hover:to-indigo-700 transition-all duration-300 shadow-lg hover:shadow-xl hover:scale-105 active:scale-95"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2.5}
+                    d="M13 7l5 5m0 0l-5 5m5-5H6"
+                  />
+                </svg>
+                Upgrade Now
+              </a>
+            </div>
+          )}
         </motion.div>
       )}
     </div>
@@ -487,6 +549,7 @@ interface CourseHeaderProps {
   onGenerateFullCourse: () => void;
   isRegenerating: boolean;
   isFullCourseGenerated: boolean;
+  userPlan?: string;
 }
 
 function CourseHeader({
@@ -499,6 +562,7 @@ function CourseHeader({
   onGenerateFullCourse,
   isRegenerating,
   isFullCourseGenerated,
+  userPlan,
 }: CourseHeaderProps) {
   return (
     <motion.div
@@ -507,7 +571,7 @@ function CourseHeader({
       className="bg-white border border-gray-200 rounded-2xl p-6 mb-6 shadow-sm"
     >
       <div className="flex items-start justify-between gap-6">
-        <CourseHeaderInfo course={course} courseProgress={courseProgress} courseId={courseId} />
+        <CourseHeaderInfo course={course} courseProgress={courseProgress} courseId={courseId} userPlan={userPlan} />
         <CourseHeaderActions
           course={course}
           onShare={onShare}
@@ -1655,6 +1719,7 @@ function CoursePageContent({
   isCompleted,
   toggleProgress,
   router,
+  userPlan,
 }: {
   course: Course;
   courseProgress: { percent: number };
@@ -1669,6 +1734,7 @@ function CoursePageContent({
   isCompleted: (moduleOrder: number, lessonOrder: number) => boolean;
   toggleProgress: (moduleOrder: number, lessonOrder: number, completed: boolean) => void;
   router: any;
+  userPlan?: string;
 }) {
   return (
     <div className="relative z-10 container mx-auto px-6 lg:px-8 py-12">
@@ -1699,6 +1765,7 @@ function CoursePageContent({
         onGenerateFullCourse={onGenerateFullCourse}
         isRegenerating={isRegenerating}
         isFullCourseGenerated={isFullCourseGenerated}
+        userPlan={userPlan}
       />
 
       <CourseModulesGrid
@@ -1777,6 +1844,7 @@ export default function CoursePage() {
         isCompleted={isCompleted}
         toggleProgress={toggleProgress}
         router={router}
+        userPlan={user?.plan}
       />
 
       <CourseModals

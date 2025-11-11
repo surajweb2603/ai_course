@@ -9,7 +9,6 @@ import StudyTips from '@/components/StudyTips';
 import Testimonials from '@/components/Testimonials';
 import FAQ from '@/components/FAQ';
 import PricingCTA from '@/components/PricingCTA';
-import Newsletter from '@/components/Newsletter';
 
 export default function Home() {
   return (
@@ -35,8 +34,6 @@ export default function Home() {
       <FAQ />
       
       <PricingCTA />
-
-      <Newsletter />
 
       {/* Footer */}
       <footer className="border-t border-gray-200 py-8 sm:py-12 bg-white">

@@ -239,10 +239,57 @@ export const generate = {
 // Certificate API methods
 export const certificate = {
   download: async (courseId: string) => {
-    const response = await apiClient.get(`/certificates/${courseId}`, {
-      responseType: 'blob'
-    });
-    return response.data;
+    try {
+      const response = await apiClient.get(`/certificates/${courseId}`, {
+        responseType: 'blob'
+      });
+      
+      // Check if the response is actually a PDF (starts with PDF header)
+      const blob = response.data;
+      if (blob instanceof Blob) {
+        // Check if it's actually a PDF by reading the first bytes
+        const arrayBuffer = await blob.slice(0, 4).arrayBuffer();
+        const uint8Array = new Uint8Array(arrayBuffer);
+        const isPDF = uint8Array[0] === 0x25 && uint8Array[1] === 0x50 && uint8Array[2] === 0x44 && uint8Array[3] === 0x46; // %PDF
+        
+        if (!isPDF) {
+          // Likely an error JSON response, try to parse it
+          const text = await blob.text();
+          try {
+            const errorData = JSON.parse(text);
+            throw new Error(errorData.error || 'Failed to download certificate');
+          } catch {
+            throw new Error('Failed to download certificate');
+          }
+        }
+      }
+      
+      return blob;
+    } catch (error: any) {
+      // If it's an axios error with a blob response that contains JSON error
+      if (error.response?.data instanceof Blob && error.response.status !== 200) {
+        try {
+          const text = await error.response.data.text();
+          const errorData = JSON.parse(text);
+          throw new Error(errorData.error || 'Failed to download certificate');
+        } catch {
+          // If parsing fails, use a generic error message
+          throw new Error('Failed to download certificate');
+        }
+      }
+      
+      // Handle standard axios errors
+      if (error.response?.data?.error) {
+        throw new Error(error.response.data.error);
+      }
+      
+      // Handle error messages
+      if (error.message) {
+        throw error;
+      }
+      
+      throw new Error('Failed to download certificate');
+    }
   },
   
   verify: async (code: string) => {

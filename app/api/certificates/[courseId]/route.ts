@@ -37,6 +37,14 @@ export const GET = withAuth(
     }
 
     try {
+      // Check if user has a paid plan
+      if (req.user.plan === 'free') {
+        return NextResponse.json(
+          { error: 'Certificate download is only available for paid plans. Please upgrade to download certificates.' },
+          { status: 403 }
+        );
+      }
+
       // Check eligibility and get user/course data
       const { user, course } = await ensureEligible(userId, courseId);
 
