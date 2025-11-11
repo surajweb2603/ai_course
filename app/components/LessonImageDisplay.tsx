@@ -156,6 +156,8 @@ function useImageRetry(item: MediaItem) {
 
     setRetrying(true);
     setErrorMessage(null);
+    // Clear previous retry URL to trigger re-render
+    setRetryUrl(null);
 
     try {
       const result = await imageSearch.search({
@@ -169,6 +171,7 @@ function useImageRetry(item: MediaItem) {
         if (resolvedUrl) {
           setRetryUrl(resolvedUrl);
           setErrorMessage(null);
+          // Small delay to ensure state updates propagate
           await new Promise((resolve) => setTimeout(resolve, 100));
           return;
         }
@@ -179,6 +182,8 @@ function useImageRetry(item: MediaItem) {
       }
     } catch (error: any) {
       setErrorMessage(formatErrorMessage(error));
+      // Clear retry URL on error so user can try again
+      setRetryUrl(null);
     } finally {
       setRetrying(false);
     }
@@ -240,6 +245,7 @@ export function ImageDisplayItem({ item }: { item: MediaItem }) {
       setImageError(true);
       setImageLoading(false);
     } else {
+      // Reset error state when URL changes (including when retryUrl is set)
       setImageError(false);
       setImageLoading(true);
     }

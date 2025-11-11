@@ -42,6 +42,30 @@ export function extractCandidateUrls(
   const urls: string[] = [];
   const visited = new Set<object>();
 
+  // First, check if this is an ImageSearchResult structure and extract URLs directly
+  if (rawResult && typeof rawResult === 'object') {
+    // Check for ImageSearchResult structure: { link, image: { contextLink, thumbnailLink } }
+    if (rawResult.link && typeof rawResult.link === 'string' && rawResult.link.startsWith('http')) {
+      urls.push(rawResult.link);
+    }
+    if (rawResult.image) {
+      if (rawResult.image.contextLink && typeof rawResult.image.contextLink === 'string' && rawResult.image.contextLink.startsWith('http')) {
+        urls.push(rawResult.image.contextLink);
+      }
+      if (rawResult.image.thumbnailLink && typeof rawResult.image.thumbnailLink === 'string' && rawResult.image.thumbnailLink.startsWith('http')) {
+        urls.push(rawResult.image.thumbnailLink);
+      }
+    }
+    // Also check for GISResult structure: { url, thumbnail }
+    if (rawResult.url && typeof rawResult.url === 'string' && rawResult.url.startsWith('http')) {
+      urls.push(rawResult.url);
+    }
+    if (rawResult.thumbnail && typeof rawResult.thumbnail === 'string' && rawResult.thumbnail.startsWith('http')) {
+      urls.push(rawResult.thumbnail);
+    }
+  }
+
+  // Fallback: traverse the entire object to find any URLs
   const traverse = (value: any) => {
     if (!value) return;
     if (typeof value === 'string') {
@@ -87,14 +111,14 @@ export function preloadImage(url: string): Promise<void> {
     }, 8000);
 
     testImage.onload = () => {
-      if (!settled) return;
+      if (settled) return;
       settled = true;
       window.clearTimeout(timeoutId);
       resolve();
     };
 
     testImage.onerror = () => {
-      if (!settled) return;
+      if (settled) return;
       settled = true;
       window.clearTimeout(timeoutId);
       reject(new Error('Failed to load image'));
