@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { publicHandler } from '@/src/server/http/nextAdapter';
 import User from '@/src/models/User';
-import { hashPassword } from '@/src/utils/hash';
+import { hashPassword, verifyPassword } from '@/src/utils/hash';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -36,6 +36,17 @@ export const POST = publicHandler(async (req: NextRequest) => {
       { error: 'Invalid or expired reset token' },
       { status: 400 }
     );
+  }
+
+  // Check if new password is the same as current password
+  if (user.passwordHash) {
+    const isSamePassword = await verifyPassword(password, user.passwordHash);
+    if (isSamePassword) {
+      return NextResponse.json(
+        { error: 'New password must be different from your current password' },
+        { status: 400 }
+      );
+    }
   }
 
   // Hash new password

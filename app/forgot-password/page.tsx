@@ -29,11 +29,11 @@ function SuccessAlert({ message }: { message: string }) {
   if (!message) return null;
   return (
     <motion.div
-      initial={{ opacity: 0, x: -20 }}
-      animate={{ opacity: 1, x: 0 }}
-      className="rounded-lg bg-green-500/10 border border-green-500/20 p-4"
+      initial={{ opacity: 0, y: -10 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="rounded-lg bg-purple-50 border border-purple-200 p-4 mb-6"
     >
-      <p className="text-sm text-green-400">{message}</p>
+      <p className="text-sm text-purple-700 leading-relaxed">{message}</p>
     </motion.div>
   );
 }
@@ -82,37 +82,40 @@ function ForgotPasswordForm({
           required
           value={email}
           onChange={(e) => setEmail(e.target.value)}
-          className="appearance-none relative block w-full px-4 py-3 bg-white border border-gray-300 rounded-lg text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all"
+          disabled={!!success}
+          className="appearance-none relative block w-full px-4 py-3 bg-white border border-gray-300 rounded-lg text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all disabled:bg-gray-50 disabled:cursor-not-allowed"
           placeholder="you@example.com"
         />
-        <p className="mt-2 text-sm text-gray-600">
-          Enter your email address and we'll send you a link to reset your password.
-        </p>
+        {!success && (
+          <p className="mt-2 text-sm text-gray-600">
+            Enter your email address and we'll send you a link to reset your password.
+          </p>
+        )}
       </div>
 
-      <div>
-        <motion.button
-          type="submit"
-          disabled={loading || !!success}
-          whileHover={{ scale: loading || success ? 1 : 1.02 }}
-          whileTap={{ scale: 0.98 }}
-          className="group relative w-full flex justify-center py-3 px-4 border border-transparent text-sm font-semibold rounded-lg text-white bg-purple-600 hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg shadow-purple-500/30"
-        >
-          {loading ? (
-            <span className="flex items-center gap-2">
-              <svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-              </svg>
-              Sending...
-            </span>
-          ) : success ? (
-            'Email Sent!'
-          ) : (
-            'Send Reset Link'
-          )}
-        </motion.button>
-      </div>
+      {!success && (
+        <div>
+          <motion.button
+            type="submit"
+            disabled={loading}
+            whileHover={{ scale: loading ? 1 : 1.02 }}
+            whileTap={{ scale: 0.98 }}
+            className="group relative w-full flex justify-center py-3 px-4 border border-transparent text-sm font-semibold rounded-lg text-white bg-purple-600 hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg shadow-purple-500/30"
+          >
+            {loading ? (
+              <span className="flex items-center gap-2">
+                <svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                Sending...
+              </span>
+            ) : (
+              'Send Reset Link'
+            )}
+          </motion.button>
+        </div>
+      )}
     </motion.form>
   );
 }
@@ -174,10 +177,10 @@ export default function ForgotPasswordPage() {
             <div className="text-xs tracking-widest text-purple-600 font-medium uppercase mb-4">
               RESET PASSWORD
             </div>
-            <h2 className="text-4xl sm:text-5xl md:text-6xl font-bold text-gray-900 leading-tight tracking-tight mb-3">
+            <h2 className="text-4xl sm:text-5xl md:text-6xl font-bold text-gray-900 leading-tight tracking-tight mb-6">
               Forgot <span className="italic font-light text-purple-600">Password?</span>
             </h2>
-            <p className="text-sm text-gray-600">
+            <p className="text-sm text-gray-600 mb-8">
               Remember your password?{' '}
               <Link
                 href="/login"
