@@ -211,7 +211,7 @@ Create a `.env.local` file in the project root (Next.js will automatically load 
 # Frontend Configuration (Public - accessible in browser)
 NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=pk_test_your_stripe_publishable_key_here
 NEXT_PUBLIC_API_BASE_URL=/api
-NEXT_PUBLIC_APP_URL=http://localhost:3000
+APP_BASE_URL=http://localhost:3000
 NEXT_PUBLIC_GOOGLE_CLIENT_ID=your-google-client-id  # Optional
 
 # MongoDB Connection
@@ -248,7 +248,7 @@ STRIPE_WEBHOOK_SECRET=whsec_your-webhook-secret  # For webhook verification
 
 # App URLs
 APP_BASE_URL=http://localhost:3000
-APP_FRONTEND_URL=http://localhost:3000
+APP_BASE_URL=http://localhost:3000
 
 # YouTube API (For Video Search - Optional but Recommended)
 YOUTUBE_API_KEY=your-youtube-api-key

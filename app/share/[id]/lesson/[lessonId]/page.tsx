@@ -159,7 +159,7 @@ function CourseSidebar({ course, lessonId, currentLesson }: CourseSidebarProps) 
         <div className="bg-gray-50 border border-gray-200 rounded-xl p-4 text-xs text-gray-600 break-all font-mono">
           {typeof window !== 'undefined'
             ? window.location.href
-            : `${process.env.NEXT_PUBLIC_APP_URL || ''}/share/${course._id}/lesson/${currentLesson._id}`}
+            : `${process.env.APP_BASE_URL || ''}/share/${course._id}/lesson/${currentLesson._id}`}
         </div>
       </div>
     </aside>

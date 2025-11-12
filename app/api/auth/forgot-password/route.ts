@@ -43,7 +43,7 @@ export const POST = publicHandler(async (req: NextRequest) => {
     await user.save();
 
     // Generate reset URL
-    let baseUrl = process.env.NEXT_PUBLIC_BASE_URL;
+    let baseUrl = process.env.APP_BASE_URL;
     if (!baseUrl) {
       if (process.env.VERCEL_URL) {
         baseUrl = `https://${process.env.VERCEL_URL}`;

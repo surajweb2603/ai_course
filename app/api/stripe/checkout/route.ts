@@ -92,12 +92,12 @@ export const POST = withAuth(async (req: NextAuthRequest) => {
     }
     
     // Fall back to environment variables
-    if (process.env.APP_FRONTEND_URL) {
-      return process.env.APP_FRONTEND_URL;
+    if (process.env.APP_BASE_URL) {
+      return process.env.APP_BASE_URL;
     }
     
-    if (process.env.NEXT_PUBLIC_APP_URL) {
-      return process.env.NEXT_PUBLIC_APP_URL;
+    if (process.env.APP_BASE_URL) {
+      return process.env.APP_BASE_URL;
     }
     
     // Last resort: localhost for local development
