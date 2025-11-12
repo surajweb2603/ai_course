@@ -64,7 +64,7 @@ function useCertificateVerification(code: string | undefined) {
       setLoading(true);
       setError('');
 
-      const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || '/api';
+      const API_BASE_URL = process.env.APP_BASE_URL || '/api';
       const response = await fetch(
         `${API_BASE_URL}/certificates/verify/${code}`,
         {

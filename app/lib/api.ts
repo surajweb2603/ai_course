@@ -4,8 +4,8 @@ import axios, { AxiosInstance, AxiosRequestConfig } from 'axios';
 // When deployed on Vercel, use relative paths (empty string) or the provided URL
 // This allows the same domain to serve both frontend and API
 const getApiBaseUrl = () => {
-  // If NEXT_PUBLIC_API_BASE_URL is explicitly set, use it
-  const configured = process.env.NEXT_PUBLIC_API_BASE_URL?.trim();
+  // If APP_BASE_URL is explicitly set, use it
+  const configured = process.env.APP_BASE_URL?.trim();
   if (configured) {
     return configured.replace(/\/$/, '');
   }

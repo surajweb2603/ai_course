@@ -56,11 +56,13 @@
 
 ### 🔒 Security & Authentication
 
-- JWT-based authentication
+- JWT-based authentication with configurable expiry (7 days default, 30 days with "Remember Me")
 - Google OAuth integration
 - Secure password hashing with bcrypt
+- Password reset functionality via email (EmailJS)
 - Protected API routes with middleware
 - User session management
+- Email enumeration protection
 
 ### 💳 Payment Integration
 
@@ -87,7 +89,7 @@
 ### Backend
 
 - **Runtime**: Node.js
-- **Framework**: Express.js
+- **Framework**: Next.js 14 (App Router with API Routes)
 - **Language**: TypeScript
 - **Database**: MongoDB with Mongoose ODM
 - **Authentication**: JWT, Google OAuth
@@ -96,6 +98,7 @@
   - Google Gemini 2.0 Flash (Fallback)
 - **Payment**: Stripe API
 - **PDF Generation**: PDFKit, PDF-lib
+- **Email Service**: EmailJS (for password reset emails)
 - **Image Search**: 
   - Primary: g-i-s library (Google Image Search scraping)
   - Fallbacks: Custom Google scraper, Bing Images
@@ -103,6 +106,7 @@
   - Primary: YouTube Data API v3
   - Fallback: YouTube Search scraping (cheerio)
 - **QR Codes**: QRCode library
+- **Translation**: OpenAI GPT-4o / Google Gemini (for multi-language support)
 
 ### Infrastructure
 
@@ -182,7 +186,7 @@ Before you begin, ensure you have the following installed:
 1. **Clone the repository**
    ```bash
    git clone <repository-url>
-   cd Ai_Course_Generator
+   cd ai_course_generator_web
    ```
 
 2. **Install dependencies**
@@ -210,7 +214,6 @@ Create a `.env.local` file in the project root (Next.js will automatically load 
 ```env
 # Frontend Configuration (Public - accessible in browser)
 NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=pk_test_your_stripe_publishable_key_here
-NEXT_PUBLIC_API_BASE_URL=/api
 APP_BASE_URL=http://localhost:3000
 NEXT_PUBLIC_GOOGLE_CLIENT_ID=your-google-client-id  # Optional
 
@@ -248,7 +251,6 @@ STRIPE_WEBHOOK_SECRET=whsec_your-webhook-secret  # For webhook verification
 
 # App URLs
 APP_BASE_URL=http://localhost:3000
-APP_BASE_URL=http://localhost:3000
 
 # YouTube API (For Video Search - Optional but Recommended)
 YOUTUBE_API_KEY=your-youtube-api-key
@@ -257,6 +259,15 @@ YOUTUBE_API_KEY=your-youtube-api-key
 
 # Pixabay API (For Image Search - Optional)
 PIXABAY_API_KEY=your-pixabay-api-key
+
+# Email Service (EmailJS - For Password Reset Emails)
+EMAILJS_SERVICE_ID=your_emailjs_service_id
+EMAILJS_TEMPLATE_ID=your_emailjs_template_id
+EMAILJS_PUBLIC_KEY=your_emailjs_public_key
+EMAILJS_PRIVATE_KEY=your_emailjs_private_key  # Optional but recommended for server-side
+
+# Production Base URL (for password reset links - always use production domain)
+PRODUCTION_BASE_URL=https://your-production-domain.com
 ```
 
 ### Getting API Keys
@@ -295,6 +306,17 @@ PIXABAY_API_KEY=your-pixabay-api-key
 3. Create products and prices in Dashboard → Products
 4. Copy price IDs to `STRIPE_PRICE_MONTHLY` and `STRIPE_PRICE_YEARLY`
 
+#### EmailJS (For Password Reset Emails)
+1. Sign up at https://www.emailjs.com
+2. Create an email service (Gmail, Outlook, etc.)
+3. Create an email template with the following variables:
+   - `{{user_email}}` - Recipient email (required)
+   - `{{user_name}}` - User's name
+   - `{{reset_url}}` - Password reset URL
+4. Get your Service ID, Template ID, and Public Key from the dashboard
+5. For server-side usage, enable "Allow EmailJS API for non-browser applications" in Account → Security
+6. Add the keys to your `.env.local` file
+
 ## 💻 Development
 
 ### Development Scripts
@@ -319,53 +341,11 @@ npm run lint
 npm run format
 ```
 
-### Backend Development
+### Development Workflow
 
-All backend tasks are available through the root npm scripts:
+The application is a unified Next.js 14 monolithic application. All routes are served from the `app/` directory, and the application runs with a single `npm run dev` command.
 
-```bash
-# Development (with hot reload)
-npm run dev:backend
-
-# Build TypeScript output to dist/backend
-npm run build:backend
-
-# Run compiled production build
-npm run start:backend
-
-# Seed database (with user ID)
-npm run seed -- <user-id>
-
-# Get user ID by email
-npm run get-user-id -- <email>
-
-# Fix course index script
-npm run fix-index
-
-# Image search setup helper
-npm run setup:image-search
-```
-
-### Frontend Development
-
-```bash
-# Development server
-npm run dev
-
-# Build for production
-npm run build
-
-# Start production server
-npm run start
-
-# Run linting
-npm run lint
-
-# Format code
-npm run format
-```
-
-The application is now a unified Next.js 14 monolithic application. All routes are served from the `app/` directory, and the application runs with a single `npm run dev` command.
+**Note:** The application uses Next.js App Router with API routes. There are no separate backend scripts - everything runs through Next.js.
 
 ### Project Structure
 
@@ -433,7 +413,102 @@ Login with email and password.
 ```json
 {
   "email": "john@example.com",
-  "password": "securepassword"
+  "password": "securepassword",
+  "rememberMe": false
+}
+```
+
+**Response:**
+```json
+{
+  "token": "jwt-token",
+  "user": {
+    "id": "user-id",
+    "email": "john@example.com",
+    "name": "John Doe",
+    "plan": "free",
+    "provider": "local"
+  }
+}
+```
+
+#### POST `/auth/forgot-password`
+Request a password reset email. Always returns success to prevent email enumeration.
+
+**Request Body:**
+```json
+{
+  "email": "john@example.com"
+}
+```
+
+**Response:**
+```json
+{
+  "message": "If an account with that email exists, a password reset link has been sent."
+}
+```
+
+#### POST `/auth/reset-password`
+Reset password using a reset token from email.
+
+**Request Body:**
+```json
+{
+  "token": "reset-token-from-email",
+  "password": "newsecurepassword"
+}
+```
+
+**Response:**
+```json
+{
+  "message": "Password has been reset successfully. You can now login with your new password."
+}
+```
+
+#### POST `/auth/google`
+Login or signup with Google OAuth.
+
+**Request Body:**
+```json
+{
+  "idToken": "google-id-token"
+}
+```
+
+**Response:**
+```json
+{
+  "token": "jwt-token",
+  "user": {
+    "id": "user-id",
+    "email": "john@example.com",
+    "name": "John Doe",
+    "plan": "free",
+    "provider": "google"
+  }
+}
+```
+
+#### GET `/auth/me`
+Get current authenticated user information.
+
+**Headers:**
+```
+Authorization: Bearer <jwt-token>
+```
+
+**Response:**
+```json
+{
+  "user": {
+    "id": "user-id",
+    "email": "john@example.com",
+    "name": "John Doe",
+    "plan": "free",
+    "provider": "local"
+  }
 }
 ```
 
@@ -532,23 +607,213 @@ Update a course.
 Delete a course.
 
 #### GET `/courses/:id/share`
-Get public course view (no auth required).
+Get public course view (no auth required). Returns course data if visibility is set to 'public'.
+
+**Response:**
+```json
+{
+  "course": {
+    "id": "course-id",
+    "title": "Course Title",
+    "summary": "Course summary",
+    "language": "en",
+    "modules": [...]
+  }
+}
+```
+
+#### PATCH `/courses/:id/visibility`
+Update course visibility (private/unlisted/public).
+
+**Headers:**
+```
+Authorization: Bearer <jwt-token>
+```
+
+**Request Body:**
+```json
+{
+  "visibility": "public"
+}
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "course": {
+    "id": "course-id",
+    "visibility": "public"
+  }
+}
+```
+
+#### GET `/courses/:id/export`
+Export course as PDF.
+
+**Headers:**
+```
+Authorization: Bearer <jwt-token>
+```
+
+**Response:** PDF file download
 
 ### Progress & Analytics
 
 #### GET `/progress/:courseId`
 Get progress for a course.
 
-#### POST `/progress/complete-lesson`
-Mark a lesson as complete.
+**Headers:**
+```
+Authorization: Bearer <jwt-token>
+```
+
+**Response:**
+```json
+{
+  "courseId": "course-id",
+  "userId": "user-id",
+  "completedLessons": [
+    {
+      "moduleOrder": 0,
+      "lessonOrder": 0,
+      "completedAt": "2024-01-15T00:00:00.000Z"
+    }
+  ],
+  "progressPercentage": 45.5
+}
+```
+
+#### POST `/progress/update`
+Update progress for a single lesson.
+
+**Headers:**
+```
+Authorization: Bearer <jwt-token>
+```
+
+**Request Body:**
+```json
+{
+  "courseId": "course-id",
+  "moduleOrder": 0,
+  "lessonOrder": 0,
+  "completed": true
+}
+```
+
+#### POST `/progress/bulk`
+Bulk update progress for multiple lessons.
+
+**Headers:**
+```
+Authorization: Bearer <jwt-token>
+```
+
+**Request Body:**
+```json
+{
+  "courseId": "course-id",
+  "updates": [
+    {
+      "moduleOrder": 0,
+      "lessonOrder": 0,
+      "completed": true
+    },
+    {
+      "moduleOrder": 0,
+      "lessonOrder": 1,
+      "completed": true
+    }
+  ]
+}
+```
 
 #### GET `/dashboard/stats`
 Get user dashboard statistics.
 
+**Headers:**
+```
+Authorization: Bearer <jwt-token>
+```
+
+**Response:**
+```json
+{
+  "totalCourses": 5,
+  "completedCourses": 2,
+  "totalLessons": 45,
+  "completedLessons": 20,
+  "totalStudyTime": 3600,
+  "recentActivity": [...]
+}
+```
+
+#### GET `/dashboard/courses`
+Get all courses for the authenticated user.
+
+**Headers:**
+```
+Authorization: Bearer <jwt-token>
+```
+
 ### Quizzes
 
-#### POST `/quiz/submit`
-Submit quiz answers.
+#### POST `/quizzes/save`
+Save a single quiz response.
+
+**Headers:**
+```
+Authorization: Bearer <jwt-token>
+```
+
+**Request Body:**
+```json
+{
+  "courseId": "course-id",
+  "lessonId": "lesson-id",
+  "moduleOrder": 0,
+  "lessonOrder": 0,
+  "questionIndex": 0,
+  "selectedAnswerIndex": 1
+}
+```
+
+#### POST `/quizzes/save-batch`
+Save multiple quiz responses in a single request.
+
+**Headers:**
+```
+Authorization: Bearer <jwt-token>
+```
+
+**Request Body:**
+```json
+{
+  "courseId": "course-id",
+  "lessonId": "lesson-id",
+  "moduleOrder": 0,
+  "lessonOrder": 0,
+  "responses": [
+    {
+      "questionIndex": 0,
+      "selectedAnswerIndex": 1
+    },
+    {
+      "questionIndex": 1,
+      "selectedAnswerIndex": 2
+    }
+  ]
+}
+```
+
+#### GET `/quizzes/responses/:courseId/:lessonId`
+Get quiz responses for a specific lesson.
+
+**Headers:**
+```
+Authorization: Bearer <jwt-token>
+```
 
 ### Payments
 
@@ -565,6 +830,91 @@ Confirm payment and update user plan.
 
 #### GET `/certificates/:courseId`
 Generate and download course completion certificate.
+
+**Headers:**
+```
+Authorization: Bearer <jwt-token>
+```
+
+**Response:** PDF file download
+
+#### GET `/certificates/verify/:code`
+Verify a certificate by its verification code. Returns HTML page for browser requests, JSON for API requests.
+
+**Response (JSON):**
+```json
+{
+  "valid": true,
+  "certificate": {
+    "name": "John Doe",
+    "courseTitle": "Introduction to Python",
+    "issuedAt": "2024-01-15T00:00:00.000Z",
+    "code": "certificate-code"
+  },
+  "user": {
+    "id": "user-id",
+    "name": "John Doe",
+    "email": "john@example.com"
+  },
+  "course": {
+    "id": "course-id",
+    "title": "Introduction to Python",
+    "description": "Course description"
+  }
+}
+```
+
+### Translation
+
+#### GET `/translate/languages`
+Get list of supported languages for translation.
+
+**Response:**
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "code": "en",
+      "name": "English",
+      "nativeName": "English"
+    },
+    {
+      "code": "es",
+      "name": "Spanish",
+      "nativeName": "Español"
+    }
+  ]
+}
+```
+
+#### POST `/translate/translate`
+Translate course content to a different language.
+
+**Headers:**
+```
+Authorization: Bearer <jwt-token>
+```
+
+**Request Body:**
+```json
+{
+  "text": "Course content to translate",
+  "targetLanguage": "es",
+  "sourceLanguage": "en",
+  "context": "course content"
+}
+```
+
+**Response:**
+```json
+{
+  "translatedText": "Contenido del curso traducido",
+  "sourceLanguage": "en",
+  "targetLanguage": "es",
+  "provider": "openai"
+}
+```
 
 ## 🎨 Features in Detail
 
@@ -715,6 +1065,23 @@ const videoData = extractVideoDataFromHTML($);
 - Generate shareable public links
 - No account required to view shared courses
 - Customizable visibility settings
+- Public course viewing at `/share/:id`
+- Public lesson viewing at `/share/:id/lesson/:lessonId`
+
+### Password Reset
+
+- Secure password reset via email
+- EmailJS integration for sending reset emails
+- Token-based reset with 1-hour expiry
+- Email enumeration protection
+- Support for local authentication users only (Google OAuth users don't need password reset)
+
+### Certificate Verification
+
+- QR code verification on certificates
+- Public verification endpoint at `/certificate/verify/:code`
+- HTML and JSON response formats
+- Certificate details display with verification status
 
 ## 💎 Subscription Plans
 
@@ -747,17 +1114,13 @@ const videoData = extractVideoDataFromHTML($);
 - ✅ Premium course templates
 - ✅ Advanced learning analytics
 
-## 📚 Documentation
+## 📚 Additional Documentation
 
-Comprehensive documentation is available in the `/all_doc` folder:
+Additional documentation files in the repository:
 
-- **[Start Here](./all_doc/START_HERE.md)** - Quick start guide
-- **[Environment Setup](./all_doc/ENV_SETUP_AI.md)** - Detailed environment configuration
-- **[Authentication Setup](./all_doc/AUTH_SETUP.md)** - Auth system documentation
-- **[Implementation Summary](./all_doc/IMPLEMENTATION_SUMMARY.md)** - Technical overview
-- **[API Reference](./all_doc/CONTENT_API_REFERENCE.md)** - API documentation
-- **[Testing Guide](./all_doc/QUICK_TEST_GUIDE.md)** - Testing instructions
-- And many more...
+- **[EMAILJS_SETUP.md](./EMAILJS_SETUP.md)** - EmailJS configuration guide for password reset emails
+- **[EMAILJS_TEMPLATE_FIXES.md](./EMAILJS_TEMPLATE_FIXES.md)** - EmailJS template troubleshooting
+- **[HINDI_COURSE_GENERATION.md](./HINDI_COURSE_GENERATION.md)** - Guide for generating courses in Hindi
 
 ## 🤝 Contributing
 
